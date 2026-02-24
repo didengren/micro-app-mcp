@@ -1,22 +1,30 @@
 """FastMCP Server 定义"""
 
+import inspect
+import re
+import shlex
+from typing import Any, get_args, get_origin
+
 from fastmcp import FastMCP
-from micro_app_mcp.app.tools import (
-    get_knowledge_base_status as status_tool,
-    search_micro_app_knowledge as search_tool,
-    update_knowledge_base as update_tool
-)
+
+from micro_app_mcp.app.tools import get_knowledge_base_status as status_tool
+from micro_app_mcp.app.tools import get_update_knowledge_base_job as get_update_job_tool
+from micro_app_mcp.app.tools import search_micro_app_knowledge as search_tool
+from micro_app_mcp.app.tools import submit_update_knowledge_base as submit_update_tool
+from micro_app_mcp.app.tools import update_knowledge_base as update_tool
+from micro_app_mcp.config import config
 
 # 创建 FastMCP 实例，包含 /micro 触发机制
 mcp = FastMCP(
     "micro-app-knowledge-server",
     instructions=(
         "当用户消息以 /micro 开头或包含 /micro 时，优先调用 micro_app_command 工具。"
+        "若命令中显式包含工具名（如 get_update_knowledge_base_job），会优先按工具名精确分发。"
         "micro_app_command 会自动分发："
         "1) 状态类请求 -> get_knowledge_base_status；"
-        "2) 更新/同步类请求 -> update_knowledge_base；"
+        "2) 更新/同步类请求 -> submit_update_knowledge_base；"
         "3) 其他请求 -> search_micro_app_knowledge。"
-    )
+    ),
 )
 
 
@@ -32,17 +40,243 @@ def _is_status_command(command: str) -> bool:
     return "get_knowledge_base_status" in lowered or any(k in lowered for k in keywords)
 
 
+def _is_update_job_command(command: str) -> bool:
+    """判断是否为查询知识库更新任务状态命令"""
+    lowered = command.lower()
+    return "get_update_knowledge_base_job" in lowered or (
+        "job_id" in lowered and ("状态" in lowered or "status" in lowered)
+    )
+
+
 def _is_update_command(command: str) -> bool:
     """判断是否为更新命令"""
-    keywords = ("更新", "同步", "重建", "refresh", "update")
-    lowered = command.lower()
-    return "update_knowledge_base" in lowered or any(k in lowered for k in keywords)
+    lowered = command.lower().strip()
+    if not lowered:
+        return False
+
+    # 查询任务状态不应被识别为提交更新
+    if _is_update_job_command(lowered):
+        return False
+
+    # 显式工具名优先
+    if "update_knowledge_base" in lowered or "submit_update_knowledge_base" in lowered:
+        return True
+
+    # 典型检索意图（如“更新日志”）不应触发更新任务
+    search_only_patterns = config.UPDATE_INTENT_SEARCH_ONLY_PATTERNS
+    if any(p in lowered for p in search_only_patterns):
+        return False
+
+    action_keywords = config.UPDATE_INTENT_ACTION_KEYWORDS
+    target_keywords = config.UPDATE_INTENT_TARGET_KEYWORDS
+    has_action = any(k in lowered for k in action_keywords)
+    has_target = any(k in lowered for k in target_keywords)
+
+    action_pattern = "|".join(re.escape(k) for k in action_keywords)
+    target_pattern = "|".join(re.escape(k) for k in target_keywords)
+    compact_patterns = []
+    if action_pattern and target_pattern:
+        compact_patterns = [
+            rf"({action_pattern}).{{0,8}}({target_pattern})",
+            rf"({target_pattern}).{{0,8}}({action_pattern})",
+        ]
+    has_compact_match = any(re.search(p, lowered) for p in compact_patterns)
+
+    return has_compact_match or (has_action and has_target)
 
 
 def _is_force_update(command: str) -> bool:
     """判断是否要求强制更新"""
     lowered = command.lower()
     return "force=true" in lowered or "强制" in lowered
+
+
+def _extract_job_id(command: str) -> str | None:
+    """提取 job_id 参数"""
+    patterns = [
+        r'job_id\s*[=:]\s*"([^"]+)"',
+        r"job_id\s*[=:]\s*'([^']+)'",
+        r"job_id\s*[=:]\s*([A-Za-z0-9_-]+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, command, flags=re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    return None
+
+
+def _parse_bool(value: str) -> bool:
+    lowered = value.strip().lower()
+    if lowered in {"true", "1", "yes", "y"}:
+        return True
+    if lowered in {"false", "0", "no", "n"}:
+        return False
+    raise ValueError(f"无法解析布尔值: {value}")
+
+
+def _coerce_param_value(raw: str, param: inspect.Parameter) -> Any:
+    """根据函数签名将字符串参数转换为目标类型。"""
+    annotation = param.annotation
+    default = param.default
+    target = annotation
+    if target is inspect._empty and default is not inspect._empty:
+        target = type(default)
+
+    origin = get_origin(target)
+    if origin is None:
+        if target in (inspect._empty, str):
+            return raw
+        if target is bool:
+            return _parse_bool(raw)
+        if target is int:
+            return int(raw)
+        if target is float:
+            return float(raw)
+        return raw
+
+    if origin is list:
+        return [item.strip() for item in raw.split(",") if item.strip()]
+
+    if origin is tuple:
+        return tuple(item.strip() for item in raw.split(",") if item.strip())
+
+    if origin is type(None):
+        return None
+
+    if origin is Any:
+        return raw
+
+    if origin is not None:
+        union_args = [arg for arg in get_args(target) if arg is not type(None)]
+        if len(union_args) == 1:
+            temp_param = inspect.Parameter(
+                param.name,
+                kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                annotation=union_args[0],
+                default=param.default,
+            )
+            return _coerce_param_value(raw, temp_param)
+
+    return raw
+
+
+def _tokenize_command(command: str) -> list[str]:
+    """解析命令字符串为 token。"""
+    if not command.strip():
+        return []
+    try:
+        return shlex.split(command)
+    except ValueError:
+        return command.split()
+
+
+async def _dispatch_explicit_tool_call(command: str, top_k: int) -> object | None:
+    """显式工具名分发：支持所有已注册 MCP 工具通过 /micro 触发。"""
+    tokens = _tokenize_command(command)
+    if not tokens:
+        return None
+
+    tool_name = tokens[0]
+    registered_tools = getattr(mcp._tool_manager, "_tools", {})
+    tool = registered_tools.get(tool_name)
+    if tool is None:
+        return None
+
+    if tool_name == "micro_app_command":
+        return {
+            "status": "bad_request",
+            "message": "请勿在 /micro 内再次调用 micro_app_command。",
+        }
+
+    fn = tool.fn
+    signature = inspect.signature(fn)
+
+    raw_kwargs: dict[str, str] = {}
+    positional_tokens: list[str] = []
+    for token in tokens[1:]:
+        if "=" in token:
+            key, value = token.split("=", 1)
+            raw_kwargs[key.strip()] = value.strip()
+        else:
+            positional_tokens.append(token)
+
+    kwargs: dict[str, Any] = {}
+    pos_idx = 0
+    parameters = list(signature.parameters.values())
+    for idx, param in enumerate(parameters):
+        if param.kind in {
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        }:
+            continue
+
+        name = param.name
+        if name in raw_kwargs:
+            try:
+                kwargs[name] = _coerce_param_value(raw_kwargs.pop(name), param)
+            except ValueError as e:
+                return {"status": "bad_request", "message": str(e)}
+            continue
+
+        if name in {"query", "command"} and pos_idx < len(positional_tokens):
+            kwargs[name] = " ".join(positional_tokens[pos_idx:])
+            pos_idx = len(positional_tokens)
+            continue
+
+        if pos_idx < len(positional_tokens):
+            try:
+                kwargs[name] = _coerce_param_value(positional_tokens[pos_idx], param)
+            except ValueError as e:
+                return {"status": "bad_request", "message": str(e)}
+            pos_idx += 1
+            continue
+
+        if name == "top_k":
+            kwargs[name] = top_k
+            continue
+
+        if name == "force" and tool_name in {
+            "submit_update_knowledge_base",
+            "update_knowledge_base",
+        }:
+            kwargs[name] = _is_force_update(command)
+            continue
+
+        if param.default is inspect._empty:
+            missing = [name]
+            missing.extend(
+                p.name
+                for p in parameters[idx + 1 :]
+                if p.default is inspect._empty
+                and p.kind
+                not in {
+                    inspect.Parameter.VAR_POSITIONAL,
+                    inspect.Parameter.VAR_KEYWORD,
+                }
+            )
+            return {
+                "status": "bad_request",
+                "message": f"{tool_name} 缺少必填参数: {', '.join(missing)}",
+            }
+
+    if raw_kwargs:
+        return {
+            "status": "bad_request",
+            "message": f"{tool_name} 存在未知参数: {', '.join(sorted(raw_kwargs.keys()))}",
+        }
+
+    if pos_idx < len(positional_tokens):
+        return {
+            "status": "bad_request",
+            "message": (
+                f"{tool_name} 存在无法解析的额外参数: "
+                f"{' '.join(positional_tokens[pos_idx:])}"
+            ),
+        }
+
+    if inspect.iscoroutinefunction(fn):
+        return await fn(**kwargs)
+    return fn(**kwargs)
 
 
 @mcp.tool()
@@ -59,11 +293,28 @@ async def micro_app_command(command: str, top_k: int = 15) -> object:
     """
     normalized = _normalize_micro_command(command)
 
+    explicit_result = await _dispatch_explicit_tool_call(normalized, top_k)
+    if explicit_result is not None:
+        return explicit_result
+
+    if _is_update_job_command(normalized):
+        job_id = _extract_job_id(normalized)
+        if not job_id:
+            return {
+                "status": "bad_request",
+                "message": (
+                    "缺少 job_id 参数。示例：/micro get_update_knowledge_base_job "
+                    "job_id=<任务ID>"
+                ),
+            }
+        return await get_update_job_tool(job_id)
+
+    # 更新命令优先于状态命令，避免“更新知识库状态”被误分发为纯状态查询
+    if _is_update_command(normalized):
+        return await submit_update_tool(force=_is_force_update(normalized))
+
     if _is_status_command(normalized):
         return await status_tool()
-
-    if _is_update_command(normalized):
-        return await update_tool(force=_is_force_update(normalized))
 
     query = normalized or command
     return await search_tool(query, top_k)
@@ -96,14 +347,43 @@ async def get_knowledge_base_status() -> dict:
 
 
 @mcp.tool()
-async def update_knowledge_base(force: bool = False) -> str:
+async def submit_update_knowledge_base(force: bool = False) -> dict:
+    """
+    提交知识库后台更新任务（非阻塞）。
+
+    Args:
+        force: 是否强制更新
+
+    Returns:
+        后台任务信息（包含 job_id）
+    """
+    return await submit_update_tool(force)
+
+
+@mcp.tool()
+async def get_update_knowledge_base_job(job_id: str) -> dict:
+    """
+    查询知识库更新任务状态。
+
+    Args:
+        job_id: 更新任务 ID
+
+    Returns:
+        任务状态信息
+    """
+    return await get_update_job_tool(job_id)
+
+
+@mcp.tool()
+async def update_knowledge_base(force: bool = False, blocking: bool = False) -> str:
     """
     触发知识库更新。
-    
+
     Args:
         force: 是否强制更新，强制更新会重新采集所有数据
-    
+        blocking: 是否阻塞等待更新完成，默认 False（推荐）
+
     Returns:
-        更新结果摘要
+        非阻塞模式返回任务提交结果；阻塞模式返回更新结果摘要
     """
-    return await update_tool(force)
+    return await update_tool(force, blocking=blocking)

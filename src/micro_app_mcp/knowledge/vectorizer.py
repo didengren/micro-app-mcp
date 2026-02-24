@@ -1,6 +1,7 @@
 """向量化处理"""
 
-import sys
+import logging
+import threading
 from typing import List, Optional
 
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -9,6 +10,8 @@ from langchain_core.embeddings import Embeddings
 from micro_app_mcp.config import config
 
 _cached_embedder: Optional[Embeddings] = None
+_cached_embedder_lock = threading.Lock()
+logger = logging.getLogger(__name__)
 
 
 def get_embedder(lazy: Optional[bool] = None) -> Embeddings:
@@ -21,31 +24,35 @@ def get_embedder(lazy: Optional[bool] = None) -> Embeddings:
         嵌入模型实例
     """
     global _cached_embedder
-    
+
     if _cached_embedder is not None:
         return _cached_embedder
-    
-    if lazy is None:
-        lazy = config.EMBEDDING_LAZY_LOAD
-    
-    if config.EMBEDDING_MODEL == "local":
-        if lazy:
-            _cached_embedder = LazyEmbedder(
-                model_name=config.EMBEDDING_MODEL_NAME,
-                model_kwargs={"device": "cpu"},
-                encode_kwargs={"normalize_embeddings": True}
-            )
+
+    with _cached_embedder_lock:
+        if _cached_embedder is not None:
+            return _cached_embedder
+
+        if lazy is None:
+            lazy = config.EMBEDDING_LAZY_LOAD
+
+        if config.EMBEDDING_MODEL == "local":
+            if lazy:
+                _cached_embedder = LazyEmbedder(
+                    model_name=config.EMBEDDING_MODEL_NAME,
+                    model_kwargs={"device": "cpu"},
+                    encode_kwargs={"normalize_embeddings": True}
+                )
+            else:
+                _cached_embedder = HuggingFaceEmbeddings(
+                    model_name=config.EMBEDDING_MODEL_NAME,
+                    model_kwargs={"device": "cpu"},
+                    encode_kwargs={"normalize_embeddings": True}
+                )
+        elif config.EMBEDDING_MODEL == "api":
+            raise NotImplementedError("API模式尚未实现")
         else:
-            _cached_embedder = HuggingFaceEmbeddings(
-                model_name=config.EMBEDDING_MODEL_NAME,
-                model_kwargs={"device": "cpu"},
-                encode_kwargs={"normalize_embeddings": True}
-            )
-    elif config.EMBEDDING_MODEL == "api":
-        raise NotImplementedError("API模式尚未实现")
-    else:
-        raise ValueError(f"不支持的嵌入模型: {config.EMBEDDING_MODEL}")
-    
+            raise ValueError(f"不支持的嵌入模型: {config.EMBEDDING_MODEL}")
+
     return _cached_embedder
 
 
@@ -58,23 +65,20 @@ class LazyEmbedder(Embeddings):
         self.encode_kwargs = encode_kwargs
         self._inner = None
         self._loaded = False
+        self._load_lock = threading.Lock()
 
     def _ensure_loaded(self):
         if self._inner is None:
-            print("\n" + "=" * 50)
-            print("⏳ 首次检索，正在加载向量模型...")
-            print(f"   模型: {self.model_name}")
-            print("   首次加载可能需要 10-30 秒，请耐心等待...")
-            print("=" * 50 + "\n")
-            sys.stdout.flush()
-            self._inner = HuggingFaceEmbeddings(
-                model_name=self.model_name,
-                model_kwargs=self.model_kwargs,
-                encode_kwargs=self.encode_kwargs
-            )
-            self._loaded = True
-            print("✅ 向量模型加载完成！")
-            sys.stdout.flush()
+            with self._load_lock:
+                if self._inner is None:
+                    logger.info("首次检索，开始加载向量模型: %s", self.model_name)
+                    self._inner = HuggingFaceEmbeddings(
+                        model_name=self.model_name,
+                        model_kwargs=self.model_kwargs,
+                        encode_kwargs=self.encode_kwargs
+                    )
+                    self._loaded = True
+                    logger.info("向量模型加载完成: %s", self.model_name)
         return self._inner
 
     @property
