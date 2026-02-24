@@ -16,8 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ## [0.1.3] - 2026-02-24
 
 <!-- AUTO-GENERATED:START -->
-### Changed
-- 暂无可归类变更。
+### Fixed
+- fix: 修复子包导入问题
 <!-- AUTO-GENERATED:END -->
 
 ## [0.1.2] - 2026-02-24
