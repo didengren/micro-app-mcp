@@ -1,6 +1,7 @@
 """配置管理"""
 
 import os
+import warnings
 from pathlib import Path
 from typing import Optional
 
@@ -49,6 +50,27 @@ class Config:
 # 创建配置实例
 config = Config()
 
-# 确保数据目录存在
-config.DATA_DIR.mkdir(parents=True, exist_ok=True)
-config.CHROMA_DB_PATH.mkdir(parents=True, exist_ok=True)
+
+def _ensure_data_dirs():
+    """确保数据目录可写，不可写时回退到 /tmp。"""
+    try:
+        config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        config.CHROMA_DB_PATH.mkdir(parents=True, exist_ok=True)
+        return
+    except Exception as e:
+        fallback = Path(
+            os.getenv("FALLBACK_DATA_DIR", "/tmp/micro_app_mcp")
+        ).expanduser()
+        warnings.warn(
+            f"DATA_DIR 不可写，回退到 {fallback}。原错误: {e}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        config.DATA_DIR = fallback
+        config.CHROMA_DB_PATH = fallback / "chroma_db"
+        config.METADATA_PATH = fallback / "metadata.json"
+        config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        config.CHROMA_DB_PATH.mkdir(parents=True, exist_ok=True)
+
+
+_ensure_data_dirs()

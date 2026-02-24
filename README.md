@@ -73,7 +73,8 @@ cp .env.example .env
 - `EMBEDDING_MODEL_NAME`: 本地向量化模型名称，默认 `BAAI/bge-small-zh-v1.5`
 - `EMBEDDING_LAZY_LOAD`: 是否启用懒加载，默认 `true`（推荐开启，可减少启动内存占用）
 - `GITHUB_TOKEN`: GitHub API Token，可选，用于提高 API 限流
-- `DATA_DIR`: 数据存储路径，默认 `~/work_space/tmp/micro_app_mcp`
+- `DATA_DIR`: 数据存储路径，默认 `/xxx/micro_app_mcp`
+- `FALLBACK_DATA_DIR`: 当 `DATA_DIR` 不可写时自动回退目录，默认 `/tmp/micro_app_mcp`
 - `CACHE_DURATION_HOURS`: 智能缓存配置，默认 24 小时
 - `DISPLAY_TIMEZONE`: 状态展示时区，默认 `Asia/Shanghai`
 
@@ -95,9 +96,9 @@ uv run micro-app-mcp
         "python",
         "src/micro_app_mcp/main.py"
       ],
-      "cwd": "/Users/twonian/work_space/trinapower/ai_agent_service/micro-app-mcp",
+      "cwd": "/xxx/work_space/micro-app-mcp",
       "env": {
-        "DATA_DIR": "~/work_space/tmp/micro_app_mcp",
+        "DATA_DIR": "/xxx/micro_app_mcp",
         "GITHUB_TOKEN": "YOUR_GITHUB_TOKEN"
       }
     }
@@ -134,7 +135,7 @@ uvx --from micro-app-mcp python -m playwright install chromium
       "command": "uvx",
       "args": ["--from", "micro-app-mcp", "micro-app-mcp"],
       "env": {
-        "DATA_DIR": "~/work_space/tmp/micro_app_mcp"
+        "DATA_DIR": "/xxx/micro_app_mcp"
       }
     }
   }
@@ -153,7 +154,7 @@ uvx --from micro-app-mcp python -m playwright install chromium
       "command": "uvx",
       "args": ["--from", "micro-app-mcp", "micro-app-mcp"],
       "env": {
-        "DATA_DIR": "~/work_space/tmp/micro_app_mcp"
+        "DATA_DIR": "/xxx/micro_app_mcp"
       }
     }
   }
