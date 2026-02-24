@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+if command -v uv >/dev/null 2>&1; then
+  PY=(uv run python)
+else
+  PY=(python3)
+fi
+
+status="$(${PY[@]} scripts/version_change_detector.py)"
+if [[ "$status" != "changed" ]]; then
+  exit 0
+fi
+
+new_version="$(${PY[@]} scripts/version_change_detector.py --new-version)"
+${PY[@]} scripts/generate_changelog.py \
+  --base-ref main \
+  --head-ref HEAD \
+  --version "$new_version" \
+  --target version \
+  --lang zh
+
+# 每次提交时，如果版本变化，自动更新更新日志，防止忘记提交 CHANGELOG.md
+git add CHANGELOG.md
+
+echo "pre-commit: CHANGELOG.md updated for version ${new_version}"

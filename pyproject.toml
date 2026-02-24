@@ -1,6 +1,6 @@
 [project]
 name = "micro-app-mcp"
-version = "0.1.1"
+version = "0.1.2"
 description = "MCP Server for micro-app knowledge base"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -19,6 +19,7 @@ dependencies = [
     "PyGithub>=1.58.0",
     "mcp>=1.26.0",
     "html2text>=2020.1.16",
+    "langchain-chroma>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -39,7 +40,6 @@ include = ["micro_app_mcp"] # 只包含 micro_app_mcp 包
 micro-app-mcp = "micro_app_mcp.main:main"
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"         # 自动检测异步测试
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]

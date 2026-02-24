@@ -1,10 +1,16 @@
 """ChromaDB 封装"""
 
+import logging
 from typing import List
+
+from chromadb.config import Settings
+from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_community.vectorstores import Chroma
+
 from micro_app_mcp.knowledge.vectorizer import Vectorizer
 from micro_app_mcp.config import config
+
+logging.getLogger("chromadb.telemetry.product.posthog").setLevel(logging.WARNING)
 
 
 class VectorStore:
@@ -19,7 +25,10 @@ class VectorStore:
         self.db = Chroma(
             collection_name="micro_app_knowledge",
             embedding_function=self.vectorizer.embeddings,
-            persist_directory=str(config.CHROMA_DB_PATH)
+            persist_directory=str(config.CHROMA_DB_PATH),
+            client_settings=Settings(
+                anonymized_telemetry=config.CHROMA_ANONYMIZED_TELEMETRY
+            ),
         )
     
     def add_documents(self, documents: List[Document]) -> List[str]:
@@ -53,7 +62,10 @@ class VectorStore:
         self.db = Chroma(
             collection_name="micro_app_knowledge",
             embedding_function=self.vectorizer.embeddings,
-            persist_directory=str(config.CHROMA_DB_PATH)
+            persist_directory=str(config.CHROMA_DB_PATH),
+            client_settings=Settings(
+                anonymized_telemetry=config.CHROMA_ANONYMIZED_TELEMETRY
+            ),
         )
 
     def count_documents(self) -> int:
