@@ -39,7 +39,6 @@ include = ["micro_app_mcp"] # 只包含 micro_app_mcp 包
 micro-app-mcp = "micro_app_mcp.main:main"
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"         # 自动检测异步测试
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
