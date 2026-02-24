@@ -1,0 +1,130 @@
+name: release-pypi
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-test:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version_check.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sync dependencies
+        run: uv sync --extra dev
+
+      - name: Validate tag and project version
+        id: version_check
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          version = pyproject["project"]["version"]
+          expected = f"v{version}"
+          if tag != expected:
+              raise SystemExit(f"Tag {tag} does not match project version {expected}")
+
+          output = Path(os.environ["GITHUB_OUTPUT"])
+          output.write_text(f"version={version}\n", encoding="utf-8")
+          PY
+
+      - name: Run tests
+        run: uv run pytest -q
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
+  publish-testpypi:
+    runs-on: ubuntu-latest
+    needs: validate-and-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to TestPyPI
+        env:
+          TEST_PYPI_TOKEN: ${{ secrets.TEST_PYPI_TOKEN }}
+        run: |
+          uv publish \
+            --publish-url https://test.pypi.org/legacy/ \
+            --check-url https://test.pypi.org/simple/ \
+            --token "$TEST_PYPI_TOKEN" \
+            dist/*
+
+      - name: Smoke install from TestPyPI
+        continue-on-error: true
+        run: |
+          python -m venv .venv-smoke
+          source .venv-smoke/bin/activate
+          pip install --upgrade pip
+          pip install \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple \
+            "micro-app-mcp==${{ needs.validate-and-test.outputs.version }}"
+
+  publish-pypi:
+    runs-on: ubuntu-latest
+    needs: publish-testpypi
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to PyPI
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: uv publish --token "$PYPI_TOKEN" dist/*

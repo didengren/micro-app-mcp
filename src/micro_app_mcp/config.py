@@ -32,6 +32,10 @@ class Config:
 
     # GitHub 配置
     GITHUB_TOKEN: Optional[str] = os.getenv("GITHUB_TOKEN")
+    GITHUB_HTTP_TIMEOUT_SECONDS: int = int(
+        os.getenv("GITHUB_HTTP_TIMEOUT_SECONDS", "15")
+    )
+    GITHUB_RETRY_TOTAL: int = int(os.getenv("GITHUB_RETRY_TOTAL", "0"))
 
     # 数据存储路径
     DATA_DIR: Path = Path(
@@ -41,10 +45,12 @@ class Config:
     # 智能缓存配置
     CACHE_DURATION_HOURS: int = int(os.getenv("CACHE_DURATION_HOURS", "24"))
     SEARCH_TIMEOUT_SECONDS: int = int(os.getenv("SEARCH_TIMEOUT_SECONDS", "30"))
-    UPDATE_JOB_RETENTION_HOURS: int = int(
-        os.getenv("UPDATE_JOB_RETENTION_HOURS", "168")
+    UPDATE_MAX_DURATION_SECONDS: int = int(
+        os.getenv("UPDATE_MAX_DURATION_SECONDS", "600")
     )
-    UPDATE_JOB_MAX_RECORDS: int = int(os.getenv("UPDATE_JOB_MAX_RECORDS", "200"))
+    CHROMA_ANONYMIZED_TELEMETRY: bool = (
+        os.getenv("CHROMA_ANONYMIZED_TELEMETRY", "false").lower() == "true"
+    )
 
     # /micro 更新意图识别规则（支持环境变量覆盖）
     UPDATE_INTENT_ACTION_KEYWORDS: Tuple[str, ...] = _parse_csv_env(

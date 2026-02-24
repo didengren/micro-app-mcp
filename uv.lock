@@ -1056,6 +1056,20 @@ wheels = [
 ]
 
 [[package]]
+name = "langchain-chroma"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "chromadb" },
+    { name = "langchain-core" },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fa/0e/54896830b7331c90788cf96b2c37858977c199da9ecdaf85cf11eb6e6bc1/langchain_chroma-1.1.0.tar.gz", hash = "sha256:8069685e7848041e998d16c8a4964256b031fd20551bf59429173415bc2adc12", size = 220382, upload_time = "2025-12-12T16:23:01.399Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ae/35/2a6d1191acaad043647e28313b0ecd161d61f09d8be37d1996a90d752c13/langchain_chroma-1.1.0-py3-none-any.whl", hash = "sha256:ff65e4a2ccefb0fb9fde2ff38705022ace402f979d557f018f6e623f7288f0fc", size = 12981, upload_time = "2025-12-12T16:23:00.196Z" },
+]
+
+[[package]]
 name = "langchain-classic"
 version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1326,7 +1340,7 @@ wheels = [
 
 [[package]]
 name = "micro-app-mcp"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "chromadb" },
@@ -1335,6 +1349,7 @@ dependencies = [
     { name = "html2text" },
     { name = "huggingface-hub" },
     { name = "langchain" },
+    { name = "langchain-chroma" },
     { name = "langchain-community" },
     { name = "mcp" },
     { name = "playwright" },
@@ -1359,6 +1374,7 @@ requires-dist = [
     { name = "html2text", specifier = ">=2020.1.16" },
     { name = "huggingface-hub", specifier = ">=0.20.0" },
     { name = "langchain", specifier = ">=0.2.0" },
+    { name = "langchain-chroma", specifier = ">=0.1.0" },
     { name = "langchain-community", specifier = ">=0.2.0" },
     { name = "mcp", specifier = ">=1.26.0" },
     { name = "playwright", specifier = ">=1.40.0" },

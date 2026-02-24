@@ -72,13 +72,15 @@ cp .env.example .env
 - `EMBEDDING_MODEL`: 向量化模型类型，目前只支持 `local`
 - `EMBEDDING_MODEL_NAME`: 本地向量化模型名称，默认 `BAAI/bge-small-zh-v1.5`
 - `EMBEDDING_LAZY_LOAD`: 是否启用懒加载，默认 `true`（推荐开启，可减少启动内存占用）
-- `GITHUB_TOKEN`: GitHub API Token，可选，用于提高 API 限流
+- `GITHUB_TOKEN`: GitHub API Token，强烈建议配置（否则更新知识库时易触发限流）
+- `GITHUB_HTTP_TIMEOUT_SECONDS`: GitHub 请求超时时间（秒），默认 15
+- `GITHUB_RETRY_TOTAL`: GitHub 请求重试次数，默认 0（避免限流后长时间退避阻塞）
 - `DATA_DIR`: 数据存储路径
 - `FALLBACK_DATA_DIR`: 当 `DATA_DIR` 不可写时自动回退目录，默认 `/tmp/micro_app_mcp`（若仍不可写会自动降级到系统临时目录）
 - `CACHE_DURATION_HOURS`: 智能缓存配置，默认 24 小时
 - `SEARCH_TIMEOUT_SECONDS`: 检索超时秒数，默认 30 秒（超时会返回“请稍后重试”提示）
-- `UPDATE_JOB_RETENTION_HOURS`: 更新任务状态保留时长（小时），默认 168
-- `UPDATE_JOB_MAX_RECORDS`: 更新任务状态最大保留条数，默认 200
+- `UPDATE_MAX_DURATION_SECONDS`: 单次更新最大持续时间（秒），默认 600（超时自动失败）
+- `CHROMA_ANONYMIZED_TELEMETRY`: Chroma 匿名遥测开关，默认 `false`（关闭）
 - `UPDATE_INTENT_ACTION_KEYWORDS`: `/micro` 更新动作关键词（逗号分隔）
 - `UPDATE_INTENT_TARGET_KEYWORDS`: `/micro` 更新目标关键词（逗号分隔）
 - `UPDATE_INTENT_SEARCH_ONLY_PATTERNS`: `/micro` 检索优先短语（命中后不触发更新）
@@ -104,10 +106,11 @@ uv run micro-app-mcp
       "cwd": "<project_root_dir>/work_space/micro-app-mcp",
       "env": {
         "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
+        "FALLBACK_DATA_DIR": "<FALLBACK_DATA_DIR>/micro_app_mcp",
+        "GITHUB_TOKEN": "<YOUR_GITHUB_TOKEN>",
         "UPDATE_INTENT_ACTION_KEYWORDS": "强制更新,更新知识库,同步知识库,重建索引,force update,update knowledge base,rebuild index,sync knowledge base",
         "UPDATE_INTENT_TARGET_KEYWORDS": "知识库,索引,向量库,knowledge base,index,vector",
-        "UPDATE_INTENT_SEARCH_ONLY_PATTERNS": "更新日志,changelog,release note,release notes,版本更新,最新更新",
-        "GITHUB_TOKEN": "YOUR_GITHUB_TOKEN"
+        "UPDATE_INTENT_SEARCH_ONLY_PATTERNS": "更新日志,changelog,release note,release notes,版本更新,最新更新"
       }
     }
   }
@@ -145,6 +148,7 @@ uvx --from micro-app-mcp==<version> python -m playwright install chromium
       "env": {
         "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
         "FALLBACK_DATA_DIR": "<FALLBACK_DATA_DIR>/micro_app_mcp",
+        "GITHUB_TOKEN": "<YOUR_GITHUB_TOKEN>",
         "UPDATE_INTENT_ACTION_KEYWORDS": "强制更新,更新知识库,同步知识库,重建索引,force update,update knowledge base,rebuild index,sync knowledge base",
         "UPDATE_INTENT_TARGET_KEYWORDS": "知识库,索引,向量库,knowledge base,index,vector",
         "UPDATE_INTENT_SEARCH_ONLY_PATTERNS": "更新日志,changelog,release note,release notes,版本更新,最新更新"
@@ -168,6 +172,7 @@ uvx --from micro-app-mcp==<version> python -m playwright install chromium
       "env": {
         "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
         "FALLBACK_DATA_DIR": "<FALLBACK_DATA_DIR>/micro_app_mcp",
+        "GITHUB_TOKEN": "<YOUR_GITHUB_TOKEN>",
         "UPDATE_INTENT_ACTION_KEYWORDS": "强制更新,更新知识库,同步知识库,重建索引,force update,update knowledge base,rebuild index,sync knowledge base",
         "UPDATE_INTENT_TARGET_KEYWORDS": "知识库,索引,向量库,knowledge base,index,vector",
         "UPDATE_INTENT_SEARCH_ONLY_PATTERNS": "更新日志,changelog,release note,release notes,版本更新,最新更新"
@@ -181,40 +186,48 @@ uvx --from micro-app-mcp==<version> python -m playwright install chromium
 
 当用户输入以 `/micro` 开头或包含 `/micro` 的消息时，会优先调用统一入口工具 `micro_app_command`，再按意图分发：
 
-- 若命令里显式写了工具名（如 `get_update_knowledge_base_job job_id=...`），会优先按已注册工具精确分发
+- 若命令里显式写了工具名（如 `update_knowledge_base force=true`），会优先按已注册工具精确分发
 - 状态类请求：调用 `get_knowledge_base_status`
-- 更新类请求：调用 `submit_update_knowledge_base`
+- 更新类请求：调用 `update_knowledge_base`
 - 其他请求：调用 `search_micro_app_knowledge`
 
 推荐的工具编排方式：
 
 1. 先调用 `get_knowledge_base_status`（只读状态）
-2. 当 `is_stale=true` 或用户明确要求更新时，先调用 `submit_update_knowledge_base`
-3. 使用 `get_update_knowledge_base_job(job_id)` 轮询任务状态直到 `succeeded`/`failed`
-4. 更新完成后再调用 `search_micro_app_knowledge`
+2. 当 `is_stale=true` 或用户明确要求更新时，调用 `update_knowledge_base(force=true/false)`（非阻塞提交）
+3. 再次调用 `get_knowledge_base_status` 查看 `update_status`（`running|succeeded|failed`）
+4. 更新完成后调用 `search_micro_app_knowledge`
 
 可用 MCP 工具：
 
-- `get_knowledge_base_status`: 返回 UTC 时间的 `last_updated`/`next_recommended_update_at`，以及 `is_stale`、`should_skip_update`、`document_count`、`data_dir`、`data_dir_source` 等状态信息
-- `submit_update_knowledge_base(force=False)`: 提交后台更新任务（非阻塞）
-- `get_update_knowledge_base_job(job_id)`: 查询后台更新任务状态（任务状态会持久化到 `metadata.json`）
-- `update_knowledge_base(force=False, blocking=False)`: 兼容接口，默认非阻塞（`blocking=True` 时阻塞执行）
+- `get_knowledge_base_status`: 返回 UTC 时间的 `last_updated`/`next_recommended_update_at`，以及 `is_stale`、`should_skip_update`、`document_count`、`data_dir`、`data_dir_source`、`update_status`、`update_started_at`、`update_finished_at`、`update_last_message`、`update_last_error` 等状态信息
+- `update_knowledge_base(force=False)`: 非阻塞提交后台更新任务；若已有任务执行中会返回提示
 - `search_micro_app_knowledge(query, top_k=15)`: 语义检索（只读）
 
 #### 示例
 
 1. `/micro 获取知识库状态`
-2. `/micro 强制更新知识库 force=true`（返回 job_id）
-3. `get_update_knowledge_base_job(job_id="<上一步返回值>")`
+2. `/micro 强制更新知识库 force=true`
+3. `/micro 获取知识库状态`（查看 `update_status`）
 4. `/micro <你的检索问题>`
 
 ## 项目结构
 
 ```
 micro-app-mcp/
+├── .github/
+│   └── workflows/
+│       └── release-pypi.yml       # Tag 自动发布 TestPyPI/PyPI
+├── .githooks/
+│   └── pre-commit                 # 版本变更时自动更新 CHANGELOG
 ├── pyproject.toml                 # 项目配置
 ├── uv.lock                        # 依赖锁定
 ├── README.md                      # 项目说明
+├── CHANGELOG.md                   # 变更日志（Keep a Changelog）
+├── scripts/
+│   ├── generate_changelog.py      # 根据 git diff 生成 changelog 条目
+│   ├── version_change_detector.py # 检测 staged 版本变更
+│   └── install_hooks.sh           # 安装本地 git hooks
 ├── src/
 │   └── micro_app_mcp/
 │       ├── __init__.py

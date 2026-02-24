@@ -8,21 +8,18 @@ from typing import Any, get_args, get_origin
 from fastmcp import FastMCP
 
 from micro_app_mcp.app.tools import get_knowledge_base_status as status_tool
-from micro_app_mcp.app.tools import get_update_knowledge_base_job as get_update_job_tool
 from micro_app_mcp.app.tools import search_micro_app_knowledge as search_tool
-from micro_app_mcp.app.tools import submit_update_knowledge_base as submit_update_tool
 from micro_app_mcp.app.tools import update_knowledge_base as update_tool
 from micro_app_mcp.config import config
 
-# 创建 FastMCP 实例，包含 /micro 触发机制
 mcp = FastMCP(
     "micro-app-knowledge-server",
     instructions=(
         "当用户消息以 /micro 开头或包含 /micro 时，优先调用 micro_app_command 工具。"
-        "若命令中显式包含工具名（如 get_update_knowledge_base_job），会优先按工具名精确分发。"
+        "若命令中显式包含工具名（如 update_knowledge_base），会优先按工具名精确分发。"
         "micro_app_command 会自动分发："
         "1) 状态类请求 -> get_knowledge_base_status；"
-        "2) 更新/同步类请求 -> submit_update_knowledge_base；"
+        "2) 更新/同步类请求 -> update_knowledge_base；"
         "3) 其他请求 -> search_micro_app_knowledge。"
     ),
 )
@@ -40,29 +37,15 @@ def _is_status_command(command: str) -> bool:
     return "get_knowledge_base_status" in lowered or any(k in lowered for k in keywords)
 
 
-def _is_update_job_command(command: str) -> bool:
-    """判断是否为查询知识库更新任务状态命令"""
-    lowered = command.lower()
-    return "get_update_knowledge_base_job" in lowered or (
-        "job_id" in lowered and ("状态" in lowered or "status" in lowered)
-    )
-
-
 def _is_update_command(command: str) -> bool:
     """判断是否为更新命令"""
     lowered = command.lower().strip()
     if not lowered:
         return False
 
-    # 查询任务状态不应被识别为提交更新
-    if _is_update_job_command(lowered):
-        return False
-
-    # 显式工具名优先
-    if "update_knowledge_base" in lowered or "submit_update_knowledge_base" in lowered:
+    if "update_knowledge_base" in lowered:
         return True
 
-    # 典型检索意图（如“更新日志”）不应触发更新任务
     search_only_patterns = config.UPDATE_INTENT_SEARCH_ONLY_PATTERNS
     if any(p in lowered for p in search_only_patterns):
         return False
@@ -89,20 +72,6 @@ def _is_force_update(command: str) -> bool:
     """判断是否要求强制更新"""
     lowered = command.lower()
     return "force=true" in lowered or "强制" in lowered
-
-
-def _extract_job_id(command: str) -> str | None:
-    """提取 job_id 参数"""
-    patterns = [
-        r'job_id\s*[=:]\s*"([^"]+)"',
-        r"job_id\s*[=:]\s*'([^']+)'",
-        r"job_id\s*[=:]\s*([A-Za-z0-9_-]+)",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, command, flags=re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-    return None
 
 
 def _parse_bool(value: str) -> bool:
@@ -235,10 +204,7 @@ async def _dispatch_explicit_tool_call(command: str, top_k: int) -> object | Non
             kwargs[name] = top_k
             continue
 
-        if name == "force" and tool_name in {
-            "submit_update_knowledge_base",
-            "update_knowledge_base",
-        }:
+        if name == "force" and tool_name == "update_knowledge_base":
             kwargs[name] = _is_force_update(command)
             continue
 
@@ -297,21 +263,8 @@ async def micro_app_command(command: str, top_k: int = 15) -> object:
     if explicit_result is not None:
         return explicit_result
 
-    if _is_update_job_command(normalized):
-        job_id = _extract_job_id(normalized)
-        if not job_id:
-            return {
-                "status": "bad_request",
-                "message": (
-                    "缺少 job_id 参数。示例：/micro get_update_knowledge_base_job "
-                    "job_id=<任务ID>"
-                ),
-            }
-        return await get_update_job_tool(job_id)
-
-    # 更新命令优先于状态命令，避免“更新知识库状态”被误分发为纯状态查询
     if _is_update_command(normalized):
-        return await submit_update_tool(force=_is_force_update(normalized))
+        return await update_tool(force=_is_force_update(normalized))
 
     if _is_status_command(normalized):
         return await status_tool()
@@ -347,43 +300,14 @@ async def get_knowledge_base_status() -> dict:
 
 
 @mcp.tool()
-async def submit_update_knowledge_base(force: bool = False) -> dict:
+async def update_knowledge_base(force: bool = False) -> str:
     """
-    提交知识库后台更新任务（非阻塞）。
-
-    Args:
-        force: 是否强制更新
-
-    Returns:
-        后台任务信息（包含 job_id）
-    """
-    return await submit_update_tool(force)
-
-
-@mcp.tool()
-async def get_update_knowledge_base_job(job_id: str) -> dict:
-    """
-    查询知识库更新任务状态。
-
-    Args:
-        job_id: 更新任务 ID
-
-    Returns:
-        任务状态信息
-    """
-    return await get_update_job_tool(job_id)
-
-
-@mcp.tool()
-async def update_knowledge_base(force: bool = False, blocking: bool = False) -> str:
-    """
-    触发知识库更新。
+    非阻塞触发知识库更新。
 
     Args:
         force: 是否强制更新，强制更新会重新采集所有数据
-        blocking: 是否阻塞等待更新完成，默认 False（推荐）
 
     Returns:
-        非阻塞模式返回任务提交结果；阻塞模式返回更新结果摘要
+        任务提交结果或“已有任务执行中”提示
     """
-    return await update_tool(force, blocking=blocking)
+    return await update_tool(force=force)
