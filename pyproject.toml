@@ -1,6 +1,6 @@
 [project]
 name = "micro-app-mcp"
-version = "0.1.2"
+version = "0.1.3"
 description = "MCP Server for micro-app knowledge base"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -33,8 +33,8 @@ build-backend = "setuptools.build_meta"
 package-dir = { "" = "src" } # 告诉 setuptools：根包在 src/ 下，决定 wheel 包的目录结构没有包含 src 目录本身
 
 [tool.setuptools.packages.find]
-where = ["src"]             # 在 src/ 目录下查找包，有配置 package-dir，此处可省略
-include = ["micro_app_mcp"] # 只包含 micro_app_mcp 包
+where = ["src"]              # 在 src/ 目录下查找包，有配置 package-dir，此处可省略
+include = ["micro_app_mcp*"] # 包含 micro_app_mcp 及其所有子包
 
 [project.scripts]
 micro-app-mcp = "micro_app_mcp.main:main"
