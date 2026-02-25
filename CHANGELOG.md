@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 <!-- AUTO-GENERATED:END -->
 
 
+
+## [0.1.4] - 2026-02-25
+
+<!-- AUTO-GENERATED:START -->
+### Changed
+- 暂无可归类变更。
+<!-- AUTO-GENERATED:END -->
+
 ## [0.1.3] - 2026-02-24
 
 <!-- AUTO-GENERATED:START -->
@@ -55,7 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 
 <!-- LINKS:START -->
-[Unreleased]: https://github.com/didengren/micro-app-mcp/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/didengren/micro-app-mcp/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/didengren/micro-app-mcp/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/didengren/micro-app-mcp/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/didengren/micro-app-mcp/compare/v0.1.1...v0.1.2
 <!-- LINKS:END -->

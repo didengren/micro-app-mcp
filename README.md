@@ -1,73 +1,164 @@
 # Micro-App MCP Server
 
-MCP Server for micro-app knowledge base
+`micro-app-mcp` 是一个面向 **micro-app 微前端框架** 的专用知识库 MCP Server。  
+它会自动 **吃透 micro-app 仓库源码、爬取官方文档内容、用嵌入模型向量化后存入本地数据库**，并通过 MCP 协议提供语义检索与可控更新能力。
 
-## 项目简介
+---
 
-该项目是一个专门用于查询 micro-app 微前端框架知识库的 MCP Server。它整合了 GitHub 源码和在线文档内容，支持语义检索。当用户输入 `/micro` 时，LLM 会先通过统一入口工具按意图分发（状态 / 更新 / 检索）后再回答问题。
+## 特性亮点
 
-## 核心功能
+- **源码级掌握 micro-app**：从官方 GitHub 仓库拉取源码，结合文档做统一知识建模。
+- **自动爬取官方文档**：利用 Playwright 渲染 + 文档爬虫，从文档站点采集完整内容。
+- **本地向量化知识库**：基于嵌入模型将文本向量化，存入本地 ChromaDB，查询低延迟、可离线可缓存。
+- **可控更新策略**：支持按需更新、强制更新与状态查询，避免每次都重建知识库。
+- **标准 MCP 接入**：开箱即用接入 Trae AI Agent、VSCode 等支持 MCP 的智能体。
 
-- **数据采集**: 自动从 GitHub 获取源码，从在线文档站点获取文档内容
-- **知识向量化**: 将采集的文本内容进行分块、向量化存储
-- **语义检索**: 提供基于向量相似度的语义检索能力
-- **MCP 协议集成**: 暴露标准 MCP 工具接口，支持 Trae AI Agent 和 VSCode 智能体
+---
 
-## 技术栈
+## 对话场景
 
-- **MCP 框架**: FastMCP
-- **HTTP 框架**: FastAPI
-- **依赖管理**: uv
-- **LLM 框架**: LangChain
-- **向量数据库**: ChromaDB
-- **文档采集**: LangChain AsyncChromiumLoader
-- **源码采集**: PyGithub
+在你的智能体里（如 Trae / VSCode MCP 插件）完成配置后，当用户输入 `/micro` 时，LLM 会先通过统一入口工具按问题类别（状态 / 更新 / 检索）识别意图后再回答问题，比如：
 
-## 用法
-### 方法一：PyPI包方式
+- **查询知识库状态**：`/micro 获取知识库状态`
+- **控制知识库更新**：`/micro 更新知识库` 或 `/micro 强制更新知识库 force=true`
+- **询问 API / 配置项**：`/micro micro-app 支持哪些沙箱隔离模式？`
+- **理解源码实现**：`/micro micro-app 子应用的加载流程怎么实现的？入口源码在哪？`
+- **看版本变更 / 升级注意**：`/micro 从 vX 到 vY 有哪些 breaking changes？`
 
-#### 安装PyPI包
+---
+
+## 安装和运行（需要 Python 3.12）
+
+### CLI 方式
+
+> 全局安装（pip为例）
 
 ```bash
-pip install micro-app-mcp
-
-# 运行依赖：DocsLoader 用 Playwright 爬取文档网站，Playwright 需要浏览器（Chromium）才能渲染页面
-python -m playwright install chromium
+pip install micro-app-mcp # 手动安装包
+python -m playwright install chromium # 使用依赖模块 Playwright 安装 Chromium
 ```
 
-#### 运行
+**运行**
 
 ```bash
+# 配置 shell 环境变量，其中一项是指定数据目录
+export DATA_DIR=<DATA_DIR>
+
 micro-app-mcp
 ```
 
-### 方法二：源码方式
+> 或者 
+> 临时环境安装（uvx为例）
 
-#### 安装源码
+```bash
+uvx --from micro-app-mcp python -m playwright install chromium
+```
+
+**运行**
+
+```bash
+export DATA_DIR=<DATA_DIR>
+
+uvx --from micro-app-mcp micro-app-mcp
+```
+
+---
+
+### 源码方式
+
+> 适合本地开发与调试
+
+#### 克隆仓库
 
 ```bash
 # 克隆仓库
-git clone <repository-url>
+git clone https://github.com/didengren/micro-app-mcp.git
 cd micro-app-mcp
+```
 
-# 安装依赖（包含测试依赖）
+#### 安装依赖
+
+```bash
+# 安装依赖（含开发依赖）
 uv sync --extra dev
 
+# 安装 Playwright 浏览器
 uv run python -m playwright install chromium
 
-# 将本项目作为 editable 包安装，解决项目中自身包路径问题
+# 以 editable 方式安装本项目作为依赖模块，方便开发调试
 uv run pip install -e .
 ```
 
-#### 环境变量配置
-
-复制 `.env.example` 文件为 `.env` 并根据需要修改配置：
+#### 配置项目环境变量
 
 ```bash
 cp .env.example .env
+# 按需修改 .env
 ```
 
-主要配置项：
+#### 本地直接运行
+
+```bash
+uv run micro-app-mcp
+# 或
+uv run python -m micro_app_mcp.main
+```
+
+---
+
+## IDE / Agent 集成 MCP Server
+
+### Trae AI Agent 配置示例
+
+在 Trae 配置文件 `config.json` 中新增（示例）：
+
+```json
+{
+  "mcpServers": {
+    "micro-app-knowledge": {
+      "command": "uvx",
+      "args": ["--from", "micro-app-mcp==<version>", "micro-app-mcp"],
+      "env": {
+        "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
+        "FALLBACK_DATA_DIR": "<FALLBACK_DATA_DIR>/micro_app_mcp",
+        "GITHUB_TOKEN": "<YOUR_GITHUB_TOKEN>",
+        "UPDATE_INTENT_ACTION_KEYWORDS": "强制更新,更新知识库,同步知识库,重建索引,force update,update knowledge base,rebuild index,sync knowledge base",
+        "UPDATE_INTENT_TARGET_KEYWORDS": "知识库,索引,向量库,knowledge base,index,vector",
+        "UPDATE_INTENT_SEARCH_ONLY_PATTERNS": "更新日志,changelog,release note,release notes,版本更新,最新更新"
+      }
+    }
+  }
+}
+```
+
+### VSCode MCP 配置示例
+
+在 VSCode 的 `mcp.json` 中新增：
+
+```json
+{
+  "mcpServers": {
+    "micro-app-knowledge": {
+      "command": "uvx",
+      "args": ["--from", "micro-app-mcp==<version>", "micro-app-mcp"],
+      "env": {
+        "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
+        "FALLBACK_DATA_DIR": "<FALLBACK_DATA_DIR>/micro_app_mcp",
+        "GITHUB_TOKEN": "<YOUR_GITHUB_TOKEN>",
+        "UPDATE_INTENT_ACTION_KEYWORDS": "强制更新,更新知识库,同步知识库,重建索引,force update,update knowledge base,rebuild index,sync knowledge base",
+        "UPDATE_INTENT_TARGET_KEYWORDS": "知识库,索引,向量库,knowledge base,index,vector",
+        "UPDATE_INTENT_SEARCH_ONLY_PATTERNS": "更新日志,changelog,release note,release notes,版本更新,最新更新"
+      }
+    }
+  }
+}
+```
+
+---
+
+## 配置说明（运行时可配置的环境变量）
+
+在 `.env` 或进程环境中可以配置以下变量：
 
 - `EMBEDDING_MODEL`: 向量化模型类型，目前只支持 `local`
 - `EMBEDDING_MODEL_NAME`: 本地向量化模型名称，默认 `BAAI/bge-small-zh-v1.5`
@@ -84,183 +175,69 @@ cp .env.example .env
 - `UPDATE_INTENT_ACTION_KEYWORDS`: `/micro` 更新动作关键词（逗号分隔）
 - `UPDATE_INTENT_TARGET_KEYWORDS`: `/micro` 更新目标关键词（逗号分隔）
 - `UPDATE_INTENT_SEARCH_ONLY_PATTERNS`: `/micro` 检索优先短语（命中后不触发更新）
+- `HF_ENDPOINT`: 国内环境拉取嵌入模型可配置成 HuggingFace 镜像地址，比如 `https://hf-mirror.com`
 
-#### 本地服务器直接运行
+> **最简配置建议**：  
+> 只体验功能时，优先设置 `GITHUB_TOKEN` 和 `DATA_DIR`，其它可保持默认。
+>
+> **网络问题提示**：
+> - 拉取嵌入模型（首次加载）和 GitHub 源码时需要访问国外网络，建议自备代理或使用国内镜像源
+> - 嵌入模型：配置 `HF_ENDPOINT=https://hf-mirror.com` 使用 HuggingFace 国内镜像
+> - GitHub 源码：配置 `GITHUB_TOKEN` 可提高 API 限流阈值（60次→5000次/小时），但网络超时问题仍需代理解决
+> - 代理配置：`HTTP_PROXY` / `HTTPS_PROXY` 环境变量（会影响所有 HTTP 请求）
 
-```bash
-uv run micro-app-mcp
-```
-
-#### MCP 服务器配置与运行（适合宿主项目配合开发调试）
-
-```json
-{
-  "mcpServers": {
-    "micro-app-mcp": {
-      "command": "uv",
-      "args": [
-        "run",
-        "python",
-        "src/micro_app_mcp/main.py"
-      ],
-      "cwd": "<project_root_dir>/work_space/micro-app-mcp",
-      "env": {
-        "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
-        "FALLBACK_DATA_DIR": "<FALLBACK_DATA_DIR>/micro_app_mcp",
-        "GITHUB_TOKEN": "<YOUR_GITHUB_TOKEN>",
-        "UPDATE_INTENT_ACTION_KEYWORDS": "强制更新,更新知识库,同步知识库,重建索引,force update,update knowledge base,rebuild index,sync knowledge base",
-        "UPDATE_INTENT_TARGET_KEYWORDS": "知识库,索引,向量库,knowledge base,index,vector",
-        "UPDATE_INTENT_SEARCH_ONLY_PATTERNS": "更新日志,changelog,release note,release notes,版本更新,最新更新"
-      }
-    }
-  }
-}
-```
-
-#### 测试
-
-```bash
-# 运行测试
-uv run pytest
-```
-
-### 方法三：IDE智能体方式
-
-#### 安装依赖
-
-```bash
-uvx --from micro-app-mcp==<version> python -m playwright install chromium
-```
-
-#### MCP 服务器配置
-
-###### 方法一：在 Trae AI Agent 中配置 MCP 服务器
-
-- 打开 Trae AI Agent 配置文件（`config.json`）
-- 添加以下内容：
-
-```json
-{
-  "mcpServers": {
-    "micro-app-knowledge": {
-      "command": "uvx",
-      "args": ["--from", "micro-app-mcp==<version>", "micro-app-mcp"],
-      "env": {
-        "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
-        "FALLBACK_DATA_DIR": "<FALLBACK_DATA_DIR>/micro_app_mcp",
-        "GITHUB_TOKEN": "<YOUR_GITHUB_TOKEN>",
-        "UPDATE_INTENT_ACTION_KEYWORDS": "强制更新,更新知识库,同步知识库,重建索引,force update,update knowledge base,rebuild index,sync knowledge base",
-        "UPDATE_INTENT_TARGET_KEYWORDS": "知识库,索引,向量库,knowledge base,index,vector",
-        "UPDATE_INTENT_SEARCH_ONLY_PATTERNS": "更新日志,changelog,release note,release notes,版本更新,最新更新"
-      }
-    }
-  }
-}
-```
-
-###### 方法二：在 VSCode 中配置 MCP 服务器
-
-- 打开 VSCode 智能体配置文件（`mcp.json`）
-- 添加以下内容：
-
-```json
-{
-  "mcpServers": {
-    "micro-app-knowledge": {
-      "command": "uvx",
-      "args": ["--from", "micro-app-mcp==<version>", "micro-app-mcp"],
-      "env": {
-        "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
-        "FALLBACK_DATA_DIR": "<FALLBACK_DATA_DIR>/micro_app_mcp",
-        "GITHUB_TOKEN": "<YOUR_GITHUB_TOKEN>",
-        "UPDATE_INTENT_ACTION_KEYWORDS": "强制更新,更新知识库,同步知识库,重建索引,force update,update knowledge base,rebuild index,sync knowledge base",
-        "UPDATE_INTENT_TARGET_KEYWORDS": "知识库,索引,向量库,knowledge base,index,vector",
-        "UPDATE_INTENT_SEARCH_ONLY_PATTERNS": "更新日志,changelog,release note,release notes,版本更新,最新更新"
-      }
-    }
-  }
-}
-```
-
-#### LLM调用MCP工具内在逻辑
-
-当用户输入以 `/micro` 开头或包含 `/micro` 的消息时，会优先调用统一入口工具 `micro_app_command`，再按意图分发：
-
-- 若命令里显式写了工具名（如 `update_knowledge_base force=true`），会优先按已注册工具精确分发
-- 状态类请求：调用 `get_knowledge_base_status`
-- 更新类请求：调用 `update_knowledge_base`
-- 其他请求：调用 `search_micro_app_knowledge`
-
-推荐的工具编排方式：
-
-1. 先调用 `get_knowledge_base_status`（只读状态）
-2. 当 `is_stale=true` 或用户明确要求更新时，调用 `update_knowledge_base(force=true/false)`（非阻塞提交）
-3. 再次调用 `get_knowledge_base_status` 查看 `update_status`（`running|succeeded|failed`）
-4. 更新完成后调用 `search_micro_app_knowledge`
-
-可用 MCP 工具：
-
-- `get_knowledge_base_status`: 返回 UTC 时间的 `last_updated`/`next_recommended_update_at`，以及 `is_stale`、`should_skip_update`、`document_count`、`data_dir`、`data_dir_source`、`update_status`、`update_started_at`、`update_finished_at`、`update_last_message`、`update_last_error` 等状态信息
-- `update_knowledge_base(force=False)`: 非阻塞提交后台更新任务；若已有任务执行中会返回提示
-- `search_micro_app_knowledge(query, top_k=15)`: 语义检索（只读）
-
-#### 示例
-
-1. `/micro 获取知识库状态`
-2. `/micro 强制更新知识库 force=true`
-3. `/micro 获取知识库状态`（查看 `update_status`）
-4. `/micro <你的检索问题>`
+---
 
 ## 项目结构
 
-```
+```text
 micro-app-mcp/
-├── .github/
-│   └── workflows/
-│       └── release-pypi.yml       # Tag 自动发布 TestPyPI/PyPI
-├── .githooks/
-│   └── pre-commit                 # 版本变更时自动更新 CHANGELOG
-├── pyproject.toml                 # 项目配置
-├── uv.lock                        # 依赖锁定
-├── README.md                      # 项目说明
-├── CHANGELOG.md                   # 变更日志（Keep a Changelog）
+├── .github/workflows/release-pypi.yml  # Tag 自动发布 TestPyPI/PyPI
+├── .githooks/pre-commit                # 版本变更时自动更新 CHANGELOG
+├── pyproject.toml                      # 项目配置
+├── uv.lock                             # 依赖锁文件
+├── README.md                           # 项目说明
+├── CHANGELOG.md                        # 版本变更记录
 ├── scripts/
-│   ├── generate_changelog.py      # 根据 git diff 生成 changelog 条目
-│   ├── version_change_detector.py # 检测 staged 版本变更
-│   └── install_hooks.sh           # 安装本地 git hooks
-├── src/
-│   └── micro_app_mcp/
-│       ├── __init__.py
-│       ├── main.py                # FastMCP 入口
-│       ├── config.py              # 配置管理
-│       ├── app/
-│       │   ├── __init__.py
-│       │   ├── server.py          # MCP Server 定义
-│       │   └── tools.py           # MCP 工具实现
-│       ├── knowledge/
-│       │   ├── __init__.py
-│       │   ├── base.py            # 知识处理基类
-│       │   ├── github_loader.py   # GitHub 源码采集
-│       │   ├── docs_loader.py     # 文档采集 (Playwright)
-│       │   ├── text_splitter.py   # 文本分块
-│       │   └── vectorizer.py      # 向量化处理
-│       ├── storage/
-│       │   ├── __init__.py
-│       │   ├── vector_store.py    # ChromaDB 封装
-│       │   └── metadata.py        # 元数据管理
-│       └── utils/
-│           ├── __init__.py
-│           └── logger.py          # 日志工具
+│   ├── generate_changelog.py           # 基于 git diff 生成 changelog
+│   ├── version_change_detector.py      # 检测版本变更
+│   └── install_hooks.sh                # 安装本地 git hooks
+├── src/micro_app_mcp/
+│   ├── main.py                         # FastMCP 入口
+│   ├── config.py                       # 配置管理
+│   ├── app/
+│   │   ├── server.py                   # MCP Server 定义
+│   │   └── tools.py                    # MCP 工具实现
+│   ├── knowledge/
+│   │   ├── github_loader.py            # micro-app 仓库源码采集
+│   │   ├── docs_loader.py              # 官方文档采集（Playwright）
+│   │   ├── text_splitter.py            # 文本切分
+│   │   └── vectorizer.py               # 嵌入与向量存储
+│   ├── storage/
+│   │   ├── vector_store.py             # ChromaDB 封装
+│   │   └── metadata.py                 # 元数据管理
+│   └── utils/logger.py                 # 日志工具
 ├── tests/
-│   ├── __init__.py
 │   ├── test_tools.py
 │   └── test_knowledge.py
-└── .env.example                   # 环境变量示例
+└── .env.example                        # 环境变量示例
 ```
+
+---
+
+## 测试
+
+```bash
+uv run pytest
+```
+
+---
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request！
+欢迎提交 Issue 和 Pull Request，一起把 micro-app 生态的知识体验做得更好。
+
+---
 
 ## 许可证
 
