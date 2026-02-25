@@ -5,20 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
-## [Unreleased]
-
-<!-- AUTO-GENERATED:START -->
-### Changed
-- 暂无未发布变更。
-<!-- AUTO-GENERATED:END -->
-
-
 
 ## [0.1.4] - 2026-02-25
 
 <!-- AUTO-GENERATED:START -->
-### Changed
-- 暂无可归类变更。
+### Fixed
+- fix: 剪除不再使用的运行时依赖，重写readme
 <!-- AUTO-GENERATED:END -->
 
 ## [0.1.3] - 2026-02-24
