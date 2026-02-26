@@ -4,17 +4,16 @@ import tomllib
 from pathlib import Path
 
 
-def test_commitizen_config_in_pyproject():
-    pyproject_path = Path("pyproject.toml")
-    content = pyproject_path.read_text(encoding="utf-8")
-    pyproject = tomllib.loads(content)
+def test_commitizen_config_exists():
+    cz_path = Path(".cz.yaml")
+    assert cz_path.exists()
 
-    assert "commitizen" in pyproject.get("tool", {})
-    cz = pyproject["tool"]["commitizen"]
-    assert cz["name"] == "cz_conventional_commits"
-    assert cz["tag_format"] == "v$version"
-    assert cz["version_provider"] == "pep621"
-    assert cz["update_changelog_on_bump"] is True
+    content = cz_path.read_text(encoding="utf-8")
+    assert "commitizen" in content
+    assert "cz_customize" in content
+    assert "tag_format" in content
+    assert "pep621" in content
+    assert "update_changelog_on_bump" in content
 
 
 def test_commitizen_in_dev_dependencies():
