@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 
 
+## [0.1.6] - 2026-02-26
+
+### Changed
+- chore: 新增提交规范、版本变更自动化等辅助功能
+- test: 修复测试用例错误
+- ci: 优化publish流程
+
 ## [0.1.5] - 2026-02-26
 
 ### Changed
