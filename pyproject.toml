@@ -1,6 +1,6 @@
 [project]
 name = "micro-app-mcp"
-version = "0.1.5"
+version = "0.1.6"
 authors = [{ name = "Sam Xu", email = "twonian@gmail.com" }]
 description = "MCP Server for micro-app knowledge base"
 license = "MIT"

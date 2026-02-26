@@ -59,3 +59,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 [0.1.4]: https://github.com/didengren/micro-app-mcp/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/didengren/micro-app-mcp/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/didengren/micro-app-mcp/compare/v0.1.1...v0.1.2
+
+## v0.1.6 (2026-02-27)
+
+
+- test: 修复测试用例错误
+- chore: 新增提交规范、版本变更自动化等辅助功能
+- 1. 升级依赖并增加与外部通信的网络协议支持 2. 增加Windows 系统下运行报错等常见问题的解决方案推荐
+
+## v0.1.4 (2026-02-25)
+
+
+- 变更changelog
+- 剪除不再使用的运行时依赖，重写readme
+
+## v0.1.3 (2026-02-25)
+
+
+- 变更changelog和uv.lock中包版本
+- fix: 修复子包导入问题
+
+## v0.1.2 (2026-02-24)
+
+
+- Merge branch 'fix/timeout'
+- release: 0.1.2 automation + changelog
+- Merge branch 'feat/multi_process' into fix/timeout
+- 重构多进程执行场景
+- #
+- 变更版本号
+- Merge branch 'master'
+- 修复因路径导致文件写入无权限的问题
+- Merge branch 'main'
+- Merge branch 'main' of github.com:didengren/micro-app-mcp 合并github仓库的LICENSE文件
+- Initial commit
+- 基本完成mcp server源码开发
