@@ -13,6 +13,6 @@ else
   ruff check src/ tests/ --fix
 fi
 
-git add -u src/ tests/
+git add -u src/ tests/ uv.lock
 
 echo "pre-commit: all checks passed"
