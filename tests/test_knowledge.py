@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 from github import RateLimitExceededException
 from langchain_core.documents import Document
+
 from micro_app_mcp.knowledge.docs_loader import DocsLoader
 from micro_app_mcp.knowledge.github_loader import GitHubLoader
 from micro_app_mcp.knowledge.text_splitter import TextSplitter
@@ -204,15 +205,13 @@ def test_github_loader_rate_limit_should_fail_fast():
 
     class FakeRepo:
         def get_branch(self, _branch_name):
-            raise RateLimitExceededException(
-                403, {"message": "rate limit exceeded"}, None
-            )
+            raise RateLimitExceededException(403, {"message": "rate limit exceeded"}, None)
 
     loader = GitHubLoader.__new__(GitHubLoader)
     loader.repo = FakeRepo()
 
     try:
         loader._load_sync()
-        assert False, "expected RuntimeError"
+        raise AssertionError("expected RuntimeError")
     except RuntimeError as e:
         assert "限流" in str(e)

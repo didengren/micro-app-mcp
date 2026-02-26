@@ -4,7 +4,6 @@ import os
 import tempfile
 import warnings
 from pathlib import Path
-from typing import Optional, Tuple
 
 from dotenv import load_dotenv
 
@@ -12,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def _parse_csv_env(name: str, default: str) -> Tuple[str, ...]:
+def _parse_csv_env(name: str, default: str) -> tuple[str, ...]:
     """解析逗号分隔环境变量"""
     raw = os.getenv(name, default)
     return tuple(item.strip() for item in raw.split(",") if item.strip())
@@ -31,7 +30,7 @@ class Config:
     )
 
     # GitHub 配置
-    GITHUB_TOKEN: Optional[str] = os.getenv("GITHUB_TOKEN")
+    GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN")
     GITHUB_HTTP_TIMEOUT_SECONDS: int = int(
         os.getenv("GITHUB_HTTP_TIMEOUT_SECONDS", "15")
     )
@@ -53,15 +52,15 @@ class Config:
     )
 
     # /micro 更新意图识别规则（支持环境变量覆盖）
-    UPDATE_INTENT_ACTION_KEYWORDS: Tuple[str, ...] = _parse_csv_env(
+    UPDATE_INTENT_ACTION_KEYWORDS: tuple[str, ...] = _parse_csv_env(
         "UPDATE_INTENT_ACTION_KEYWORDS",
         "更新,同步,重建,刷新,update,refresh,rebuild,sync",
     )
-    UPDATE_INTENT_TARGET_KEYWORDS: Tuple[str, ...] = _parse_csv_env(
+    UPDATE_INTENT_TARGET_KEYWORDS: tuple[str, ...] = _parse_csv_env(
         "UPDATE_INTENT_TARGET_KEYWORDS",
         "知识库,向量库,索引,vector,embedding,index,db,database",
     )
-    UPDATE_INTENT_SEARCH_ONLY_PATTERNS: Tuple[str, ...] = _parse_csv_env(
+    UPDATE_INTENT_SEARCH_ONLY_PATTERNS: tuple[str, ...] = _parse_csv_env(
         "UPDATE_INTENT_SEARCH_ONLY_PATTERNS",
         "更新日志,changelog,release note,release notes,版本更新,最新更新",
     )

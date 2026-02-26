@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-from typing import List
 
 from github import Github, GithubException, RateLimitExceededException
 from langchain_core.documents import Document
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class GitHubLoader(BaseLoader):
     """GitHub 源码加载器"""
-    
+
     def __init__(self):
         """初始化"""
         # 初始化 GitHub 客户端
@@ -56,7 +55,7 @@ class GitHubLoader(BaseLoader):
             self._raise_rate_limit_error(e)
             raise
 
-    def _load_sync(self) -> List[Document]:
+    def _load_sync(self) -> list[Document]:
         """同步加载 GitHub 源码。"""
         documents = []
 
@@ -79,7 +78,7 @@ class GitHubLoader(BaseLoader):
                         try:
                             # 获取文件内容
                             content = item.decoded_content.decode("utf-8")
-                            
+
                             # 创建文档
                             doc = Document(
                                 page_content=content,
@@ -105,7 +104,7 @@ class GitHubLoader(BaseLoader):
 
         return documents
 
-    async def load(self) -> List[Document]:
+    async def load(self) -> list[Document]:
         """加载 GitHub 源码
 
         Returns:

@@ -30,6 +30,9 @@ jobs:
       - name: Sync dependencies
         run: uv sync --extra dev
 
+      - name: Verify commitizen config
+        run: uv run cz check --rev-range HEAD~1..HEAD || true
+
       - name: Validate tag and project version
         id: version_check
         run: |

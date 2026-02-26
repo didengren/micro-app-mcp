@@ -2,9 +2,8 @@
 
 import json
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Dict
 
 from micro_app_mcp.config import config
 
@@ -49,7 +48,7 @@ class MetadataManager:
     def _load_metadata_unlocked(self) -> dict:
         """无锁读取 metadata.json（调用方负责加锁）。"""
         if self.metadata_path.exists():
-            with open(self.metadata_path, "r", encoding="utf-8") as f:
+            with open(self.metadata_path, encoding="utf-8") as f:
                 try:
                     return self._normalize_metadata(json.load(f))
                 except json.JSONDecodeError:
@@ -82,7 +81,7 @@ class MetadataManager:
     def _format_utc(self, value: datetime) -> str:
         """格式化 UTC 时间字符串。"""
         return (
-            value.astimezone(timezone.utc)
+            value.astimezone(UTC)
             .isoformat(timespec="seconds")
             .replace("+00:00", "Z")
         )
@@ -93,16 +92,16 @@ class MetadataManager:
             normalized = value.replace("Z", "+00:00")
             parsed = datetime.fromisoformat(normalized)
             if parsed.tzinfo is None:
-                return parsed.replace(tzinfo=timezone.utc)
-            return parsed.astimezone(timezone.utc)
+                return parsed.replace(tzinfo=UTC)
+            return parsed.astimezone(UTC)
         except ValueError:
-            return datetime(1970, 1, 1, tzinfo=timezone.utc)
+            return datetime(1970, 1, 1, tzinfo=UTC)
 
     def update_metadata(self):
         """更新元数据中的最后更新时间。"""
         with self._thread_lock:
             latest = self._load_metadata_unlocked()
-            latest["last_updated"] = self._format_utc(datetime.now(timezone.utc))
+            latest["last_updated"] = self._format_utc(datetime.now(UTC))
             self.metadata = latest
             self._save_metadata_unlocked()
 
@@ -116,7 +115,7 @@ class MetadataManager:
                 latest.get("last_updated", "1970-01-01T00:00:00Z")
             )
             cache_duration = timedelta(hours=config.CACHE_DURATION_HOURS)
-            return datetime.now(timezone.utc) - last_updated < cache_duration
+            return datetime.now(UTC) - last_updated < cache_duration
 
     def get_last_updated(self) -> str:
         """获取最后更新时间。"""
@@ -125,13 +124,13 @@ class MetadataManager:
             self.metadata = latest
             return latest.get("last_updated", "1970-01-01T00:00:00Z")
 
-    def get_status(self) -> Dict[str, object]:
+    def get_status(self) -> dict[str, object]:
         """获取知识库状态信息。"""
         with self._thread_lock:
             latest = self._load_metadata_unlocked()
             self.metadata = latest
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             last_updated = self._parse_last_updated(
                 latest.get("last_updated", "1970-01-01T00:00:00Z")
             )

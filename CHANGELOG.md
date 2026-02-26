@@ -9,28 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [0.1.5] - 2026-02-26
 
-<!-- AUTO-GENERATED:START -->
 ### Changed
-- 暂无可归类变更。
-<!-- AUTO-GENERATED:END -->
+- 升级依赖并增加与外部通信的网络协议支持（http/sse/streamable-http）。
+- README 新增 Windows 系统运行报错 FAQ 与解决方案。
 
 ## [0.1.4] - 2026-02-25
 
-<!-- AUTO-GENERATED:START -->
 ### Fixed
 - fix: 剪除不再使用的运行时依赖，重写readme
-<!-- AUTO-GENERATED:END -->
 
 ## [0.1.3] - 2026-02-24
 
-<!-- AUTO-GENERATED:START -->
 ### Fixed
 - fix: 修复子包导入问题
-<!-- AUTO-GENERATED:END -->
 
 ## [0.1.2] - 2026-02-24
 
-<!-- AUTO-GENERATED:START -->
 ### Added
 - /micro 统一命令分发增强，支持显式工具名解析与参数自动类型转换。
 - 新增更新任务模型（提交任务、查询任务状态、任务生命周期字段）。
@@ -58,14 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Docs
 - 关联提交：f1e67ef Merge branch 'feat/multi_process' into fix/timeout；88f8ddd 重构多进程执行场景
-<!-- AUTO-GENERATED:END -->
 
 
-
-<!-- LINKS:START -->
 [Unreleased]: https://github.com/didengren/micro-app-mcp/compare/v0.1.5...HEAD
 [0.1.5]: https://github.com/didengren/micro-app-mcp/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/didengren/micro-app-mcp/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/didengren/micro-app-mcp/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/didengren/micro-app-mcp/compare/v0.1.1...v0.1.2
-<!-- LINKS:END -->

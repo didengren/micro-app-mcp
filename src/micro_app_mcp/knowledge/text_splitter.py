@@ -1,8 +1,9 @@
 """文本分块"""
 
-from typing import List
+
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from micro_app_mcp.knowledge.base import BaseProcessor
 
 
@@ -32,7 +33,7 @@ class TextSplitter(BaseProcessor):
             ]
         )
 
-    def process(self, documents: List[Document]) -> List[Document]:
+    def process(self, documents: list[Document]) -> list[Document]:
         """处理文档
 
         Args:
@@ -43,7 +44,7 @@ class TextSplitter(BaseProcessor):
         """
         return self.split_documents(documents)
 
-    def split_documents(self, documents: List[Document]) -> List[Document]:
+    def split_documents(self, documents: list[Document]) -> list[Document]:
         """分块文档
 
         Args:

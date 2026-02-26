@@ -2,24 +2,23 @@
 
 import logging
 import threading
-from typing import List, Optional
 
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.embeddings import Embeddings
 
 from micro_app_mcp.config import config
 
-_cached_embedder: Optional[Embeddings] = None
+_cached_embedder: Embeddings | None = None
 _cached_embedder_lock = threading.Lock()
 logger = logging.getLogger(__name__)
 
 
-def get_embedder(lazy: Optional[bool] = None) -> Embeddings:
+def get_embedder(lazy: bool | None = None) -> Embeddings:
     """获取嵌入模型（支持全局缓存）
-    
+
     Args:
         lazy: 是否懒加载，默认使用 config.EMBEDDING_LAZY_LOAD
-        
+
     Returns:
         嵌入模型实例
     """
@@ -85,10 +84,10 @@ class LazyEmbedder(Embeddings):
     def model(self):
         return self._ensure_loaded()
 
-    def embed_query(self, text: str) -> List[float]:
+    def embed_query(self, text: str) -> list[float]:
         return self._ensure_loaded().embed_query(text)
 
-    def embed_documents(self, documents: List[str]) -> List[List[float]]:
+    def embed_documents(self, documents: list[str]) -> list[list[float]]:
         return self._ensure_loaded().embed_documents(documents)
 
     def __repr__(self):
@@ -109,7 +108,7 @@ class Vectorizer:
         """获取嵌入模型（使用全局缓存）"""
         return get_embedder()
 
-    def embed_query(self, query: str) -> List[float]:
+    def embed_query(self, query: str) -> list[float]:
         """嵌入查询文本
 
         Args:
@@ -120,7 +119,7 @@ class Vectorizer:
         """
         return self.embeddings.embed_query(query)
 
-    def embed_documents(self, documents: List[str]) -> List[List[float]]:
+    def embed_documents(self, documents: list[str]) -> list[list[float]]:
         """嵌入文档列表
 
         Args:

@@ -1,7 +1,6 @@
 """MCP Server 入口"""
 
 import argparse
-import sys
 
 from micro_app_mcp.app.server import mcp
 

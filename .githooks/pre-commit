@@ -4,26 +4,15 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
+echo "pre-commit: running checks..."
+
+# 只做代码检查，不格式化
 if command -v uv >/dev/null 2>&1; then
-  PY=(uv run python)
+  uv run ruff check src/ tests/ --fix
 else
-  PY=(python3)
+  ruff check src/ tests/ --fix
 fi
 
-status="$(${PY[@]} scripts/version_change_detector.py)"
-if [[ "$status" != "changed" ]]; then
-  exit 0
-fi
+git add -u src/ tests/
 
-new_version="$(${PY[@]} scripts/version_change_detector.py --new-version)"
-${PY[@]} scripts/generate_changelog.py \
-  --base-ref main \
-  --head-ref HEAD \
-  --version "$new_version" \
-  --target version \
-  --lang zh
-
-# 每次提交时，如果版本变化，自动更新更新日志，防止忘记提交 CHANGELOG.md
-git add CHANGELOG.md
-
-echo "pre-commit: CHANGELOG.md updated for version ${new_version}"
+echo "pre-commit: all checks passed"

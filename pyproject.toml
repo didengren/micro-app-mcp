@@ -33,7 +33,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0.0", "pytest-asyncio>=0.23.0"]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.23.0",
+    "commitizen>=4.13.9",
+    "ruff>=0.15.3",
+]
 
 [project.urls]
 Homepage = "https://github.com/didengren/micro-app-mcp"
@@ -54,6 +59,13 @@ include = ["micro_app_mcp*"] # 包含 micro_app_mcp 及其所有子包
 
 [project.scripts]
 micro-app-mcp = "micro_app_mcp.main:main"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

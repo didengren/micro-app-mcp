@@ -1,0 +1,65 @@
+commitizen:
+  name: cz_customize
+  tag_format: v$version
+  version_scheme: semver
+  version_provider: pep621
+  update_changelog_on_bump: true
+  changelog_file: CHANGELOG.md
+  changelog_incremental: true
+
+  customize:
+    message_template: "{{change_type}}{% if scope %}({{scope}}){% endif %}: {{message}}"
+    schema: "<type>(<scope>): <message>"
+    schema_pattern: '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?:\s.+'
+    bump_pattern: "^(feat|fix|refactor|perf|revert)"
+    bump_map:
+      feat: MINOR
+      fix: PATCH
+      refactor: PATCH
+      perf: PATCH
+      revert: PATCH
+
+    questions:
+      - type: list
+        name: change_type
+        message: "选择提交类型:"
+        choices:
+          - value: feat
+            name: "feat: ✨ 新功能 (MINOR)"
+          - value: fix
+            name: "fix: 🐛 修复 bug (PATCH)"
+          - value: docs
+            name: "docs: 📝 文档更新"
+          - value: style
+            name: "style: 💄 代码格式调整"
+          - value: refactor
+            name: "refactor: ♻️ 重构代码"
+          - value: perf
+            name: "perf: ⚡ 性能优化"
+          - value: test
+            name: "test: ✅ 测试相关"
+          - value: build
+            name: "build: 📦 构建系统或依赖更新"
+          - value: ci
+            name: "ci: 👷 CI/CD 配置变更"
+          - value: chore
+            name: "chore: 🔧 其他不修改 src 或测试的更改"
+          - value: revert
+            name: "revert: ⏪ 回退之前的提交"
+
+      - type: input
+        name: scope
+        message: "影响范围 (可选，如: api, ui, core):"
+
+      - type: input
+        name: message
+        message: "提交信息:"
+
+      - type: confirm
+        name: is_breaking_change
+        message: "是否包含破坏性变更 (BREAKING CHANGE)?"
+        default: false
+
+      - type: input
+        name: footer
+        message: "备注信息 (可选):"

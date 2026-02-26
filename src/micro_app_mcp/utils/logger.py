@@ -1,8 +1,6 @@
 """日志工具"""
 
 import logging
-import os
-from pathlib import Path
 
 from config import config
 
@@ -23,10 +21,10 @@ logging.basicConfig(
 
 def get_logger(name: str) -> logging.Logger:
     """获取日志记录器
-    
+
     Args:
         name: 日志记录器名称
-        
+
     Returns:
         日志记录器实例
     """

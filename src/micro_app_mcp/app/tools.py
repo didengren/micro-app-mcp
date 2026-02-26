@@ -3,9 +3,9 @@
 import asyncio
 import hashlib
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import partial
-from typing import Any, Dict
+from typing import Any
 
 from micro_app_mcp.config import config
 from micro_app_mcp.knowledge.docs_loader import DocsLoader
@@ -47,7 +47,7 @@ CODE_KEYWORDS = [
 _METADATA_MANAGER: MetadataManager | None = None
 _STATE_LOCK = threading.Lock()
 _UPDATE_TASK: asyncio.Task[None] | None = None
-_UPDATE_STATE: Dict[str, Any] = {
+_UPDATE_STATE: dict[str, Any] = {
     "update_status": "idle",
     "update_started_at": None,
     "update_finished_at": None,
@@ -72,7 +72,7 @@ async def _run_blocking(func, *args, **kwargs):
 def _now_iso() -> str:
     """返回 UTC ISO8601 时间字符串"""
     return (
-        datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+        datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     )
 
 
@@ -88,7 +88,7 @@ async def _update_metadata_timestamp() -> None:
     await asyncio.to_thread(manager.update_metadata)
 
 
-async def _get_metadata_status() -> Dict[str, Any]:
+async def _get_metadata_status() -> dict[str, Any]:
     """在后台线程中读取知识库元数据状态"""
     manager = _get_metadata_manager()
     return await asyncio.to_thread(manager.get_status)
@@ -113,7 +113,7 @@ def _set_update_state(
         _UPDATE_STATE["update_last_error"] = error
 
 
-def _get_update_state_snapshot() -> Dict[str, Any]:
+def _get_update_state_snapshot() -> dict[str, Any]:
     """返回更新状态快照。"""
     with _STATE_LOCK:
         return dict(_UPDATE_STATE)
@@ -180,7 +180,7 @@ async def search_micro_app_knowledge(query: str, top_k: int = 15) -> str:
             _run_blocking(vector_store.search, query, base_top_k * 3),
             timeout=config.SEARCH_TIMEOUT_SECONDS,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return (
             "向量模型正在冷启动，本次检索已超时保护返回。"
             "请稍后重试（建议30-60秒后）。"
@@ -299,7 +299,7 @@ async def _run_update(force: bool) -> None:
             message=result,
             error=None,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         _set_update_state(
             status="failed",
             finished_at=_now_iso(),
