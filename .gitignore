@@ -19,6 +19,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.python-version
 
 # Testing
 .pytest_cache/
@@ -46,3 +47,6 @@ env/
 # Logs
 logs/
 *.log
+
+# System
+.DS_Store

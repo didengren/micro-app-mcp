@@ -1,5 +1,10 @@
 # Micro-App MCP Server
 
+[![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PyPI Version](https://img.shields.io/pypi/v/micro-app-mcp)](https://pypi.org/project/micro-app-mcp/)
+[![Release PyPI](https://github.com/didengren/micro-app-mcp/actions/workflows/release-pypi.yml/badge.svg)](https://github.com/didengren/micro-app-mcp/actions/workflows/release-pypi.yml)
+
 `micro-app-mcp` 是一个面向 **micro-app 微前端框架** 的专用知识库 MCP Server。  
 它会自动 **吃透 micro-app 仓库源码、爬取官方文档内容、用嵌入模型向量化后存入本地数据库**，并通过 MCP 协议提供语义检索与可控更新能力。
 
@@ -104,6 +109,12 @@ uv run micro-app-mcp
 uv run python -m micro_app_mcp.main
 ```
 
+#### 测试
+
+```bash
+uv run pytest
+```
+
 ---
 
 ## IDE / Agent 集成 MCP Server
@@ -178,13 +189,7 @@ uv run python -m micro_app_mcp.main
 - `HF_ENDPOINT`: 国内环境拉取嵌入模型可配置成 HuggingFace 镜像地址，比如 `https://hf-mirror.com`
 
 > **最简配置建议**：  
-> 只体验功能时，优先设置 `GITHUB_TOKEN` 和 `DATA_DIR`，其它可保持默认。
->
-> **网络问题提示**：
-> - 拉取嵌入模型（首次加载）和 GitHub 源码时需要访问国外网络，建议自备代理或使用国内镜像源
-> - 嵌入模型：配置 `HF_ENDPOINT=https://hf-mirror.com` 使用 HuggingFace 国内镜像
-> - GitHub 源码：配置 `GITHUB_TOKEN` 可提高 API 限流阈值（60次→5000次/小时），但网络超时问题仍需代理解决
-> - 代理配置：`HTTP_PROXY` / `HTTPS_PROXY` 环境变量（会影响所有 HTTP 请求）
+> 只体验功能时，优先设置 `DATA_DIR` 和 `GITHUB_TOKEN`，其它可保持默认。
 
 ---
 
@@ -225,11 +230,27 @@ micro-app-mcp/
 
 ---
 
-## 测试
+## 常见问题 (FAQ)
 
-```bash
-uv run pytest
-```
+### 1. 网络问题提示
+
+- 拉取嵌入模型（首次加载）和 GitHub 源码时需要访问国外网络，建议自备代理或使用国内镜像源
+- 嵌入模型：配置 `HF_ENDPOINT=https://hf-mirror.com` 使用 HuggingFace 国内镜像
+- GitHub 源码：配置 `GITHUB_TOKEN` 可提高 API 限流阈值（60次→5000次/小时），但网络超时问题仍需代理解决
+- 代理配置：`HTTP_PROXY` / `HTTPS_PROXY` 环境变量（会影响所有 HTTP 请求）
+
+### 2. Windows 系统下运行报错 `OSError: [WinError 1114] 动态链接库(DLL)初始化例程失败` 怎么办？
+
+**原因分析**：
+在 Windows 系统下初次使用 `uvx` 运行或安装大模型/向量化相关的底层库（如 PyTorch）时，极度依赖 Windows 的 C++ 运行库（Microsoft Visual C++ Redistributable）。若系统缺失该组件，会导致 `c10.dll` 等底层文件无法加载从而引发 `1114` 错误。
+
+**解决方案**：
+1. **安装 C++ 运行库**：前往下载并安装最新的 [Microsoft Visual C++ 可再发行程序包 (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe)。
+   > *注：也可参考[此 GitHub Gist 汇总帖](https://gist.github.com/opentechnologist/0fa93f92d4c42535bb8cbe539e36c080)按需下载对应版本的运行库。*
+2. **重启电脑**：安装完成后，**务必重启电脑**以使环境变量与动态链接库生效。
+3. **重新运行**：再次执行启动命令即可。
+
+*💡 进阶提示：如果安装运行库后依旧报错，可能是默认下载的 GPU 版依赖与你的显卡驱动冲突。建议改为 **源码方式** 克隆项目，并通过 `uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu` 强制安装纯 CPU 版本的 PyTorch 依赖后再运行。*
 
 ---
 

@@ -146,16 +146,20 @@ async def _dispatch_explicit_tool_call(command: str, top_k: int) -> object | Non
         return None
 
     tool_name = tokens[0]
-    registered_tools = getattr(mcp._tool_manager, "_tools", {})
-    tool = registered_tools.get(tool_name)
-    if tool is None:
-        return None
 
     if tool_name == "micro_app_command":
         return {
             "status": "bad_request",
             "message": "请勿在 /micro 内再次调用 micro_app_command。",
         }
+
+    try:
+        tool = await mcp.local_provider.get_tool(tool_name)
+    except Exception:
+        tool = None
+
+    if tool is None:
+        return None
 
     fn = tool.fn
     signature = inspect.signature(fn)
