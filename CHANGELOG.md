@@ -67,6 +67,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 [0.1.3]: https://github.com/didengren/micro-app-mcp/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/didengren/micro-app-mcp/compare/v0.1.1...v0.1.2
 
+## v0.1.7 (2026-02-28)
+
+
+- fix: 1.修改更新知识库默认的总体超时上限并增加资源下载过程的日志 2.修复需类型判断推理的tool对象取值问题
+- docs: 补充changelog
+- ci: 优化publish流程
+
 ## v0.1.6 (2026-02-27)
 
 
