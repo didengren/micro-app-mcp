@@ -6,6 +6,7 @@ import shlex
 from typing import Any, get_args, get_origin
 
 from fastmcp import FastMCP
+from fastmcp.tools.function_tool import FunctionTool
 
 from micro_app_mcp.app.tools import get_knowledge_base_status as status_tool
 from micro_app_mcp.app.tools import search_micro_app_knowledge as search_tool
@@ -159,6 +160,9 @@ async def _dispatch_explicit_tool_call(command: str, top_k: int) -> object | Non
         tool = None
 
     if tool is None:
+        return None
+
+    if not isinstance(tool, FunctionTool):
         return None
 
     fn = tool.fn

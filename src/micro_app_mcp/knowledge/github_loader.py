@@ -93,6 +93,7 @@ class GitHubLoader(BaseLoader):
                         except Exception as e:
                             logger.warning("处理文件 %s 时出错: %s", item.path, e)
                 elif item.type == "dir":
+                    logger.info("正在处理目录: %s", item.path)
                     # 递归处理子目录
                     sub_contents = self._get_contents_fast(
                         item.path, ref=branch.commit.sha
@@ -100,7 +101,9 @@ class GitHubLoader(BaseLoader):
                     process_contents(sub_contents, item.path)
 
         # 处理所有文件
+        logger.info("开始遍历 GitHub 仓库: %s", config.GITHUB_REPO)
         process_contents(root)
+        logger.info("GitHub 仓库遍历完成，共获取 %d 个文档", len(documents))
 
         return documents
 

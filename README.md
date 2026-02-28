@@ -187,6 +187,7 @@ uv run pytest
 - `UPDATE_INTENT_TARGET_KEYWORDS`: `/micro` 更新目标关键词（逗号分隔）
 - `UPDATE_INTENT_SEARCH_ONLY_PATTERNS`: `/micro` 检索优先短语（命中后不触发更新）
 - `HF_ENDPOINT`: 国内环境拉取嵌入模型可配置成 HuggingFace 镜像地址，比如 `https://hf-mirror.com`
+- `UV_EXTRA_INDEX_URL`: (可选) PyTorch 官方 CPU 仓库地址，Linux/Windows 用户配置为 `https://download.pytorch.org/whl/cpu` 可大幅减小安装体积（macOS 用户无需配置）
 
 > **最简配置建议**：  
 > 只体验功能时，优先设置 `DATA_DIR` 和 `GITHUB_TOKEN`，其它可保持默认。
@@ -242,7 +243,7 @@ micro-app-mcp/
 ### 2. Windows 系统下运行报错 `OSError: [WinError 1114] 动态链接库(DLL)初始化例程失败` 怎么办？
 
 **原因分析**：
-在 Windows 系统下初次使用 `uvx` 运行或安装大模型/向量化相关的底层库（如 PyTorch）时，极度依赖 Windows 的 C++ 运行库（Microsoft Visual C++ Redistributable）。若系统缺失该组件，会导致 `c10.dll` 等底层文件无法加载从而引发 `1114` 错误。
+在 Windows 系统下，PyPI 默认下载的 `torch` 包含 CUDA（GPU加速）支持。这需要依赖底层的 NVIDIA 驱动组件和 Microsoft Visual C++ 运行库。如果系统缺失这些组件、显卡驱动不兼容，或你根本没有 NVIDIA 显卡，加载这些 DLL 时就会失败，从而引发 `1114` 错误。
 
 **解决方案**：
 1. **安装 C++ 运行库**：前往下载并安装最新的 [Microsoft Visual C++ 可再发行程序包 (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe)。
@@ -250,7 +251,43 @@ micro-app-mcp/
 2. **重启电脑**：安装完成后，**务必重启电脑**以使环境变量与动态链接库生效。
 3. **重新运行**：再次执行启动命令即可。
 
-*💡 进阶提示：如果安装运行库后依旧报错，可能是默认下载的 GPU 版依赖与你的显卡驱动冲突。建议改为 **源码方式** 克隆项目，并通过 `uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu` 强制安装纯 CPU 版本的 PyTorch 依赖后再运行。*
+*💡 特别提示：本项目仅使用轻量级嵌入模型（Embedding）进行文本向量化，对算力要求极低，CPU 版本完全足以流畅运行。**强烈建议**遇到此类环境报错或无 GPU 的 Windows 用户直接换用 CPU 版本（参考下方「如何使用 CPU-only 版本」章节），既能彻底规避此类 DLL 报错，又能节省数 GB 的磁盘空间。*
+
+### 3. 如何使用 CPU-only 版本（推荐 Linux/Windows 用户）
+
+**场景说明**：
+默认情况下，PyPI 上的 `torch` Linux 版本包含 CUDA 支持，体积巨大（2GB+）。如果你不需要 GPU 加速，或者希望节省磁盘空间，强烈建议使用 PyTorch 官方的 CPU 专用源。
+
+**MacOS 用户无需配置**：PyPI 上的 MacOS 版本默认不含 CUDA，已是轻量化版本。
+
+#### 命令行运行
+
+```bash
+# 设置 UV_EXTRA_INDEX_URL 环境变量指向 PyTorch CPU 仓库
+UV_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu" uvx --from micro-app-mcp micro-app-mcp
+```
+
+#### Trae / VSCode 配置文件集成
+
+在 `mcpServers` 配置的 `env` 字段中添加 `UV_EXTRA_INDEX_URL`：
+
+```json
+{
+  "mcpServers": {
+    "micro-app-knowledge": {
+      "command": "uvx",
+      "args": ["--from", "micro-app-mcp==<version>", "micro-app-mcp"],
+      "env": {
+        "UV_EXTRA_INDEX_URL": "https://download.pytorch.org/whl/cpu", 
+        "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
+        // ... 其他配置保持不变
+      }
+    }
+  }
+}
+```
+
+**注意**：如果你之前已经安装过大体积版本，建议先运行 `uv cache clean` 清理缓存后再启动。
 
 ---
 

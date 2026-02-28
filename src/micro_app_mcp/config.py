@@ -45,7 +45,7 @@ class Config:
     CACHE_DURATION_HOURS: int = int(os.getenv("CACHE_DURATION_HOURS", "24"))
     SEARCH_TIMEOUT_SECONDS: int = int(os.getenv("SEARCH_TIMEOUT_SECONDS", "30"))
     UPDATE_MAX_DURATION_SECONDS: int = int(
-        os.getenv("UPDATE_MAX_DURATION_SECONDS", "600")
+        os.getenv("UPDATE_MAX_DURATION_SECONDS", "3600")
     )
     CHROMA_ANONYMIZED_TELEMETRY: bool = (
         os.getenv("CHROMA_ANONYMIZED_TELEMETRY", "false").lower() == "true"

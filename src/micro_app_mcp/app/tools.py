@@ -305,7 +305,7 @@ async def _run_update(force: bool) -> None:
             finished_at=_now_iso(),
             message=(
                 "知识库更新超时，已自动终止。"
-                "请检查 GITHUB_TOKEN / 网络状态后重试。"
+                "请检查 GITHUB_TOKEN / 网络状态，或尝试增加 UPDATE_MAX_DURATION_SECONDS 配置后重试。"
             ),
             error="update_timeout",
         )
