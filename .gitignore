@@ -24,6 +24,9 @@ wheels/
 # Testing
 .pytest_cache/
 
+# Ruff
+.ruff_cache/
+
 # Virtual Environment
 .venv/
 venv/

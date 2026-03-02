@@ -17,20 +17,24 @@ def test_ensure_data_dirs_falls_back_to_system_temp(monkeypatch, tmp_path):
     system_candidate = temp_base / "micro_app_mcp"
 
     cfg.DATA_DIR = primary
-    cfg.CHROMA_DB_PATH = primary / "chroma_db"
-    cfg.METADATA_PATH = primary / "metadata.json"
     cfg.DATA_DIR_SOURCE = "data_dir"
 
     monkeypatch.setenv("FALLBACK_DATA_DIR", str(fallback))
     monkeypatch.setattr(config_module.tempfile, "gettempdir", lambda: str(temp_base))
 
-    def fake_prepare_data_dir(path: Path):
-        if path in {primary, fallback}:
-            raise PermissionError(f"denied:{path}")
-        path.mkdir(parents=True, exist_ok=True)
-        (path / "chroma_db").mkdir(parents=True, exist_ok=True)
+    # Mock Path.mkdir instead of _prepare_data_dir
+    original_mkdir = Path.mkdir
 
-    monkeypatch.setattr(config_module, "_prepare_data_dir", fake_prepare_data_dir)
+    def fake_mkdir(self, mode=0o777, parents=False, exist_ok=False):
+        # Normalize paths for comparison
+        path_str = str(self)
+        if path_str.startswith(str(primary)) or path_str.startswith(str(fallback)):
+            raise PermissionError(f"denied:{self}")
+
+        # Call original mkdir for other paths (like temp_base)
+        return original_mkdir(self, mode=mode, parents=parents, exist_ok=exist_ok)
+
+    monkeypatch.setattr(Path, "mkdir", fake_mkdir)
 
     config_module._ensure_data_dirs()
 
@@ -49,17 +53,16 @@ def test_ensure_data_dirs_raises_when_all_candidates_unwritable(monkeypatch, tmp
     temp_base = tmp_path / "temp_base"
 
     cfg.DATA_DIR = primary
-    cfg.CHROMA_DB_PATH = primary / "chroma_db"
-    cfg.METADATA_PATH = primary / "metadata.json"
     cfg.DATA_DIR_SOURCE = "data_dir"
 
     monkeypatch.setenv("FALLBACK_DATA_DIR", str(fallback))
     monkeypatch.setattr(config_module.tempfile, "gettempdir", lambda: str(temp_base))
-    monkeypatch.setattr(
-        config_module,
-        "_prepare_data_dir",
-        lambda path: (_ for _ in ()).throw(PermissionError(f"denied:{path}")),
-    )
+
+    # Mock Path.mkdir to fail for ALL candidates
+    def failing_mkdir(self, mode=0o777, parents=False, exist_ok=False):
+        raise PermissionError(f"denied:{self}")
+
+    monkeypatch.setattr(Path, "mkdir", failing_mkdir)
 
     with pytest.raises(RuntimeError) as exc_info:
         config_module._ensure_data_dirs()

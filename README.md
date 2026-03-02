@@ -32,130 +32,63 @@
 
 ---
 
-## 安装和运行（需要 Python 3.12）
+## 安装与运行（需要 Python 3.12+）
 
-### CLI 方式
-
-> 全局安装（pip为例）
-
-```bash
-pip install micro-app-mcp # 手动安装包
-python -m playwright install chromium # 使用依赖模块 Playwright 安装 Chromium
-```
-
-**运行**
-
-```bash
-# 配置 shell 环境变量，其中一项是指定数据目录
-export DATA_DIR=<DATA_DIR>
-
-micro-app-mcp
-```
-
-> 或者 
-> 临时环境安装（uvx为例）
-
-```bash
-uvx --from micro-app-mcp python -m playwright install chromium
-```
-
-**运行**
-
-```bash
-export DATA_DIR=<DATA_DIR>
-
-uvx --from micro-app-mcp micro-app-mcp
-```
-
----
-
-### 源码方式
-
-> 适合本地开发与调试
-
-#### 克隆仓库
+### 方式 A：源码运行（推荐，已内置 CPU 优化）
+适合开发者。本项目已配置 `uv` 智能索引，在 Windows/Linux 下会自动安装轻量化 CPU 版 Torch。
 
 ```bash
 # 克隆仓库
 git clone https://github.com/didengren/micro-app-mcp.git
 cd micro-app-mcp
-```
 
-#### 安装依赖
-
-```bash
-# 安装依赖（含开发依赖）
+# 1. 一键安装依赖（自动处理跨平台 Torch 索引）
 uv sync --extra dev
 
-# 安装 Playwright 浏览器
+# 2. 安装浏览器内核
 uv run python -m playwright install chromium
 
-# 以 editable 方式安装本项目作为依赖模块，方便开发调试
+# 3. 以 editable 方式安装本项目作为依赖模块，方便开发调试
 uv run pip install -e .
-```
 
-#### 配置项目环境变量
-
-```bash
+# 4. 复制一份 .env 按需修改项目环境变量，如 GITHUB_TOKEN、DATA_DIR 等
 cp .env.example .env
-# 按需修改 .env
-```
 
-#### 本地直接运行
-
-```bash
+# 5. 运行
 uv run micro-app-mcp
-# 或
-uv run python -m micro_app_mcp.main
-```
 
-#### 测试
-
-```bash
+# 6. 测试
 uv run pytest
 ```
 
----
+### 方式 B：CLI 快速运行（uvx）
+适合普通用户。需手动指定 CPU 源以减小体积：
 
-## IDE / Agent 集成 MCP Server
+```bash
+# Linux/Windows 用户手动设置环境变量指定 CPU 源以减小体积并使用 unsafe-best-match 策略避开依赖冲突
+UV_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu" \
+uvx --from micro-app-mcp --index-strategy unsafe-best-match micro-app-mcp
 
-### Trae AI Agent 配置示例
-
-在 Trae 配置文件 `config.json` 中新增（示例）：
-
-```json
-{
-  "mcpServers": {
-    "micro-app-knowledge": {
-      "command": "uvx",
-      "args": ["--from", "micro-app-mcp==<version>", "micro-app-mcp"],
-      "env": {
-        "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
-        "FALLBACK_DATA_DIR": "<FALLBACK_DATA_DIR>/micro_app_mcp",
-        "GITHUB_TOKEN": "<YOUR_GITHUB_TOKEN>",
-        "UPDATE_INTENT_ACTION_KEYWORDS": "强制更新,更新知识库,同步知识库,重建索引,force update,update knowledge base,rebuild index,sync knowledge base",
-        "UPDATE_INTENT_TARGET_KEYWORDS": "知识库,索引,向量库,knowledge base,index,vector",
-        "UPDATE_INTENT_SEARCH_ONLY_PATTERNS": "更新日志,changelog,release note,release notes,版本更新,最新更新"
-      }
-    }
-  }
-}
+# macOS 用户（默认已支持 Metal/MPS GPU 加速且体积小，无需额外配置）
+uvx --from micro-app-mcp micro-app-mcp
 ```
 
-### VSCode MCP 配置示例
+---
 
-在 VSCode 的 `mcp.json` 中新增：
+## IDE / Agent 集成
+
+在 Trae (`config.json`) 或 VSCode (`mcp.json`) 的 `mcpServers` 中添加：
 
 ```json
 {
   "mcpServers": {
     "micro-app-knowledge": {
       "command": "uvx",
-      "args": ["--from", "micro-app-mcp==<version>", "micro-app-mcp"],
+      "args": ["--from", "micro-app-mcp", "--index-strategy", "unsafe-best-match", "micro-app-mcp"],
       "env": {
-        "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
-        "FALLBACK_DATA_DIR": "<FALLBACK_DATA_DIR>/micro_app_mcp",
-        "GITHUB_TOKEN": "<YOUR_GITHUB_TOKEN>",
+        "UV_EXTRA_INDEX_URL": "https://download.pytorch.org/whl/cpu",
+        "DATA_DIR": "<您的数据目录>",
+        "GITHUB_TOKEN": "<您的GITHUB_TOKEN>",
         "UPDATE_INTENT_ACTION_KEYWORDS": "强制更新,更新知识库,同步知识库,重建索引,force update,update knowledge base,rebuild index,sync knowledge base",
         "UPDATE_INTENT_TARGET_KEYWORDS": "知识库,索引,向量库,knowledge base,index,vector",
         "UPDATE_INTENT_SEARCH_ONLY_PATTERNS": "更新日志,changelog,release note,release notes,版本更新,最新更新"
@@ -167,9 +100,9 @@ uv run pytest
 
 ---
 
-## 配置说明（运行时可配置的环境变量）
+## 配置说明
 
-在 `.env` 或进程环境中可以配置以下变量：
+在源码运行方式项目级 `.env` 或 CLI 运行方式终端进程级的环境中可以配置以下变量：
 
 - `EMBEDDING_MODEL`: 向量化模型类型，目前只支持 `local`
 - `EMBEDDING_MODEL_NAME`: 本地向量化模型名称，默认 `BAAI/bge-small-zh-v1.5`
@@ -181,13 +114,13 @@ uv run pytest
 - `FALLBACK_DATA_DIR`: 当 `DATA_DIR` 不可写时自动回退目录，默认 `/tmp/micro_app_mcp`（若仍不可写会自动降级到系统临时目录）
 - `CACHE_DURATION_HOURS`: 智能缓存配置，默认 24 小时
 - `SEARCH_TIMEOUT_SECONDS`: 检索超时秒数，默认 30 秒（超时会返回“请稍后重试”提示）
-- `UPDATE_MAX_DURATION_SECONDS`: 单次更新最大持续时间（秒），默认 600（超时自动失败）
+- `UPDATE_MAX_DURATION_SECONDS`: 单次更新最大持续时间（秒），默认 3600（超时自动失败）
 - `CHROMA_ANONYMIZED_TELEMETRY`: Chroma 匿名遥测开关，默认 `false`（关闭）
 - `UPDATE_INTENT_ACTION_KEYWORDS`: `/micro` 更新动作关键词（逗号分隔）
 - `UPDATE_INTENT_TARGET_KEYWORDS`: `/micro` 更新目标关键词（逗号分隔）
 - `UPDATE_INTENT_SEARCH_ONLY_PATTERNS`: `/micro` 检索优先短语（命中后不触发更新）
 - `HF_ENDPOINT`: 国内环境拉取嵌入模型可配置成 HuggingFace 镜像地址，比如 `https://hf-mirror.com`
-- `UV_EXTRA_INDEX_URL`: (可选) PyTorch 官方 CPU 仓库地址，Linux/Windows 用户配置为 `https://download.pytorch.org/whl/cpu` 可大幅减小安装体积（macOS 用户无需配置）
+- `UV_EXTRA_INDEX_URL`: (可选) PyTorch 官方 CPU 仓库地址，Linux/Windows 用户配置为 `https://download.pytorch.org/whl/cpu` 可大幅减小安装体积（**源码运行模式下无需配置，会自动处理**）
 
 > **最简配置建议**：  
 > 只体验功能时，优先设置 `DATA_DIR` 和 `GITHUB_TOKEN`，其它可保持默认。
@@ -233,61 +166,22 @@ micro-app-mcp/
 
 ## 常见问题 (FAQ)
 
-### 1. 网络问题提示
+### 1. 网络与限流
+- **模型下载/GitHub 采集失败**：请检查代理配置（`HTTP_PROXY`）或使用 `HF_ENDPOINT` 镜像。
+- **更新报错**：确保配置了 `GITHUB_TOKEN`。
 
-- 拉取嵌入模型（首次加载）和 GitHub 源码时需要访问国外网络，建议自备代理或使用国内镜像源
-- 嵌入模型：配置 `HF_ENDPOINT=https://hf-mirror.com` 使用 HuggingFace 国内镜像
-- GitHub 源码：配置 `GITHUB_TOKEN` 可提高 API 限流阈值（60次→5000次/小时），但网络超时问题仍需代理解决
-- 代理配置：`HTTP_PROXY` / `HTTPS_PROXY` 环境变量（会影响所有 HTTP 请求）
+### 2. PyTorch 跨平台安装与依赖差异
+由于 PyTorch 的分发策略差异，不同系统的安装方式略有不同：
+- **macOS**：官方源下载的即为 **支持 Metal (MPS) GPU 加速** 的版本。因其无需捆绑 CUDA 库，体积依然很小，开箱即用。
+- **Windows / Linux**：官方源默认会下载带 CUDA 的 **NVIDIA GPU 版**（体积巨大、易缺 DLL）。
+  - **源码模式**：本项目已配置 `uv` 锁定 CPU 源，直接 `uv sync` 即可。
+  - **CLI 模式**：需手动指定 `UV_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu"`。
+  - **依赖冲突**：若遇 `requests` 等库版本冲突，请添加 `--index-strategy unsafe-best-match` 参数。
 
-### 2. Windows 系统下运行报错 `OSError: [WinError 1114] 动态链接库(DLL)初始化例程失败` 怎么办？
-
-**原因分析**：
-在 Windows 系统下，PyPI 默认下载的 `torch` 包含 CUDA（GPU加速）支持。这需要依赖底层的 NVIDIA 驱动组件和 Microsoft Visual C++ 运行库。如果系统缺失这些组件、显卡驱动不兼容，或你根本没有 NVIDIA 显卡，加载这些 DLL 时就会失败，从而引发 `1114` 错误。
-
-**解决方案**：
-1. **安装 C++ 运行库**：前往下载并安装最新的 [Microsoft Visual C++ 可再发行程序包 (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe)。
-   > *注：也可参考[此 GitHub Gist 汇总帖](https://gist.github.com/opentechnologist/0fa93f92d4c42535bb8cbe539e36c080)按需下载对应版本的运行库。*
-2. **重启电脑**：安装完成后，**务必重启电脑**以使环境变量与动态链接库生效。
-3. **重新运行**：再次执行启动命令即可。
-
-*💡 特别提示：本项目仅使用轻量级嵌入模型（Embedding）进行文本向量化，对算力要求极低，CPU 版本完全足以流畅运行。**强烈建议**遇到此类环境报错或无 GPU 的 Windows 用户直接换用 CPU 版本（参考下方「如何使用 CPU-only 版本」章节），既能彻底规避此类 DLL 报错，又能节省数 GB 的磁盘空间。*
-
-### 3. 如何使用 CPU-only 版本（推荐 Linux/Windows 用户）
-
-**场景说明**：
-默认情况下，PyPI 上的 `torch` Linux 版本包含 CUDA 支持，体积巨大（2GB+）。如果你不需要 GPU 加速，或者希望节省磁盘空间，强烈建议使用 PyTorch 官方的 CPU 专用源。
-
-**MacOS 用户无需配置**：PyPI 上的 MacOS 版本默认不含 CUDA，已是轻量化版本。
-
-#### 命令行运行
-
-```bash
-# 设置 UV_EXTRA_INDEX_URL 环境变量指向 PyTorch CPU 仓库
-UV_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cpu" uvx --from micro-app-mcp micro-app-mcp
-```
-
-#### Trae / VSCode 配置文件集成
-
-在 `mcpServers` 配置的 `env` 字段中添加 `UV_EXTRA_INDEX_URL`：
-
-```json
-{
-  "mcpServers": {
-    "micro-app-knowledge": {
-      "command": "uvx",
-      "args": ["--from", "micro-app-mcp==<version>", "micro-app-mcp"],
-      "env": {
-        "UV_EXTRA_INDEX_URL": "https://download.pytorch.org/whl/cpu", 
-        "DATA_DIR": "<DATA_DIR>/micro_app_mcp",
-        // ... 其他配置保持不变
-      }
-    }
-  }
-}
-```
-
-**注意**：如果你之前已经安装过大体积版本，建议先运行 `uv cache clean` 清理缓存后再启动。
+### 3. Windows 常见报错 (DLL 1114/126)
+通常因误装 GPU 版且环境缺失驱动导致。
+- **方案 A**：安装 [VC++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) 并重启。
+- **方案 B（推荐）**：强制重装为 CPU 版本（参考上条 CLI 模式配置），彻底规避显卡驱动依赖。
 
 ---
 

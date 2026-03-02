@@ -28,7 +28,7 @@ class DocsLoader(BaseLoader):
         docs = await self.loader.aload()
 
         # 转换为文本
-        transformed_docs = self.transformer.transform_documents(docs)
+        transformed_docs = list(self.transformer.transform_documents(docs))
 
         # 添加元数据
         for doc in transformed_docs:

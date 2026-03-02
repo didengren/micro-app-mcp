@@ -22,34 +22,22 @@ class Config:
 
     # 向量化模型配置
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "local")
-    EMBEDDING_MODEL_NAME: str = os.getenv(
-        "EMBEDDING_MODEL_NAME", "BAAI/bge-small-zh-v1.5"
-    )
-    EMBEDDING_LAZY_LOAD: bool = (
-        os.getenv("EMBEDDING_LAZY_LOAD", "true").lower() == "true"
-    )
+    EMBEDDING_MODEL_NAME: str = os.getenv("EMBEDDING_MODEL_NAME", "BAAI/bge-small-zh-v1.5")
+    EMBEDDING_LAZY_LOAD: bool = os.getenv("EMBEDDING_LAZY_LOAD", "true").lower() == "true"
 
     # GitHub 配置
     GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN")
-    GITHUB_HTTP_TIMEOUT_SECONDS: int = int(
-        os.getenv("GITHUB_HTTP_TIMEOUT_SECONDS", "15")
-    )
+    GITHUB_HTTP_TIMEOUT_SECONDS: int = int(os.getenv("GITHUB_HTTP_TIMEOUT_SECONDS", "15"))
     GITHUB_RETRY_TOTAL: int = int(os.getenv("GITHUB_RETRY_TOTAL", "0"))
 
     # 数据存储路径
-    DATA_DIR: Path = Path(
-        os.getenv("DATA_DIR", "~/work_space/tmp/micro_app_mcp")
-    ).expanduser()
+    DATA_DIR: Path = Path(os.getenv("DATA_DIR", Path.home() / ".cache" / "micro_app_mcp")).expanduser()
 
     # 智能缓存配置
     CACHE_DURATION_HOURS: int = int(os.getenv("CACHE_DURATION_HOURS", "24"))
     SEARCH_TIMEOUT_SECONDS: int = int(os.getenv("SEARCH_TIMEOUT_SECONDS", "30"))
-    UPDATE_MAX_DURATION_SECONDS: int = int(
-        os.getenv("UPDATE_MAX_DURATION_SECONDS", "3600")
-    )
-    CHROMA_ANONYMIZED_TELEMETRY: bool = (
-        os.getenv("CHROMA_ANONYMIZED_TELEMETRY", "false").lower() == "true"
-    )
+    UPDATE_MAX_DURATION_SECONDS: int = int(os.getenv("UPDATE_MAX_DURATION_SECONDS", "3600"))
+    CHROMA_ANONYMIZED_TELEMETRY: bool = os.getenv("CHROMA_ANONYMIZED_TELEMETRY", "false").lower() == "true"
 
     # /micro 更新意图识别规则（支持环境变量覆盖）
     UPDATE_INTENT_ACTION_KEYWORDS: tuple[str, ...] = _parse_csv_env(
@@ -66,9 +54,15 @@ class Config:
     )
 
     # 向量数据库配置
-    CHROMA_DB_PATH: Path = DATA_DIR / "chroma_db"
-    METADATA_PATH: Path = DATA_DIR / "metadata.json"
     DATA_DIR_SOURCE: str = "data_dir"
+
+    @property
+    def CHROMA_DB_PATH(self) -> Path:
+        return self.DATA_DIR / "chroma_db"
+
+    @property
+    def METADATA_PATH(self) -> Path:
+        return self.DATA_DIR / "metadata.json"
 
     # GitHub 仓库配置
     GITHUB_REPO: str = "jd-opensource/micro-app"
@@ -82,21 +76,20 @@ class Config:
 config = Config()
 
 
-def _prepare_data_dir(data_dir: Path) -> None:
-    """创建数据目录及其子目录。"""
-    data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / "chroma_db").mkdir(parents=True, exist_ok=True)
-
-
 def _ensure_data_dirs():
     """确保数据目录可写，按候选链依次回退。"""
-    fallback = Path(os.getenv("FALLBACK_DATA_DIR", "/tmp/micro_app_mcp")).expanduser()
+    # 优先使用系统标准临时目录，避免硬编码 /tmp 导致的多用户权限冲突
     system_temp = Path(tempfile.gettempdir()) / "micro_app_mcp"
+
     candidates = [
         ("data_dir", config.DATA_DIR),
-        ("fallback_data_dir", fallback),
         ("system_temp", system_temp),
     ]
+
+    # 如果设置了 FALLBACK_DATA_DIR，插入到候选列表中
+    fallback_env = os.getenv("FALLBACK_DATA_DIR")
+    if fallback_env:
+        candidates.insert(1, ("fallback_data_dir", Path(fallback_env).expanduser()))
 
     errors: list[str] = []
     seen = set()
@@ -108,10 +101,12 @@ def _ensure_data_dirs():
         seen.add(dedup_key)
 
         try:
-            _prepare_data_dir(normalized)
+            # 尝试创建主目录和子目录
+            normalized.mkdir(parents=True, exist_ok=True)
+            (normalized / "chroma_db").mkdir(parents=True, exist_ok=True)
+
+            # 更新配置（由于使用了 @property，子路径会自动更新）
             config.DATA_DIR = normalized
-            config.CHROMA_DB_PATH = normalized / "chroma_db"
-            config.METADATA_PATH = normalized / "metadata.json"
             config.DATA_DIR_SOURCE = source
 
             if source != "data_dir":
@@ -125,9 +120,7 @@ def _ensure_data_dirs():
             errors.append(f"{source}:{normalized} -> {e}")
 
     attempted = "; ".join(errors) if errors else "无候选目录"
-    raise RuntimeError(
-        f"数据目录初始化失败，尝试过的目录均不可写：{attempted}"
-    )
+    raise RuntimeError(f"数据目录初始化失败，尝试过的目录均不可写：{attempted}")
 
 
 _ensure_data_dirs()

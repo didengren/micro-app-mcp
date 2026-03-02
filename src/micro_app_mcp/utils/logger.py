@@ -2,7 +2,7 @@
 
 import logging
 
-from config import config
+from micro_app_mcp.config import config
 
 # 确保日志目录存在
 log_dir = config.DATA_DIR / "logs"

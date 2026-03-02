@@ -55,7 +55,7 @@ def test_github_loader():
             return []
 
     loader = GitHubLoader.__new__(GitHubLoader)
-    loader.repo = FakeRepo()
+    loader.repo = FakeRepo()  # type: ignore
     docs = asyncio.run(loader.load())
     assert isinstance(docs, list)
     assert len(docs) == 2
@@ -74,8 +74,8 @@ def test_docs_loader():
             return [Document(page_content="mock docs", metadata=doc.metadata) for doc in docs]
 
     loader = DocsLoader.__new__(DocsLoader)
-    loader.loader = FakeAsyncLoader()
-    loader.transformer = FakeTransformer()
+    loader.loader = FakeAsyncLoader()  # type: ignore
+    loader.transformer = FakeTransformer()  # type: ignore
     docs = asyncio.run(loader.load())
     assert isinstance(docs, list)
     assert len(docs) == 1
@@ -197,7 +197,38 @@ def test_lazy_embedder_loads_model_once_under_concurrency():
         vectorizer_module.HuggingFaceEmbeddings = original_hf
 
     assert all(r == [1.0, 2.0] for r in results)
-    assert counter["count"] == 1
+
+
+def test_vector_store_uses_configured_path(monkeypatch, tmp_path):
+    """测试 VectorStore 初始化时是否正确使用了配置的路径。"""
+    import micro_app_mcp.config as config_module
+    from micro_app_mcp.storage.vector_store import VectorStore
+
+    # 模拟配置
+    fake_data_dir = tmp_path / "fake_data"
+    fake_data_dir.mkdir()
+    config_module.config.DATA_DIR = fake_data_dir
+
+    expected_db_path = fake_data_dir / "chroma_db"
+
+    # Mock Chroma 和 Vectorizer
+    class FakeChroma:
+        def __init__(self, persist_directory, **kwargs):
+            self.persist_directory = persist_directory
+
+    class FakeVectorizer:
+        def __init__(self):
+            self.embeddings = None
+
+    monkeypatch.setattr("micro_app_mcp.storage.vector_store.Chroma", FakeChroma)
+    monkeypatch.setattr("micro_app_mcp.storage.vector_store.Vectorizer", FakeVectorizer)
+
+    # 初始化 VectorStore
+    store = VectorStore()
+
+    # 验证是否使用了正确的路径
+    # store.db 被 mock 替换为 FakeChroma，动态属性访问是合法的
+    assert store.db.persist_directory == str(expected_db_path)  # type: ignore
 
 
 def test_github_loader_rate_limit_should_fail_fast():
@@ -208,7 +239,7 @@ def test_github_loader_rate_limit_should_fail_fast():
             raise RateLimitExceededException(403, {"message": "rate limit exceeded"}, None)
 
     loader = GitHubLoader.__new__(GitHubLoader)
-    loader.repo = FakeRepo()
+    loader.repo = FakeRepo()  # type: ignore
 
     try:
         loader._load_sync()

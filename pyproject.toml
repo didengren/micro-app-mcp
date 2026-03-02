@@ -30,6 +30,7 @@ dependencies = [
     "html2text>=2025.4.15",
     "langchain-chroma>=1.1.0",
     "langchain-text-splitters>=1.1.0",
+    "torch>=2.10.0",
 ]
 
 [project.optional-dependencies]
@@ -66,6 +67,19 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.uv]
+# 定义一个“自定义仓库”（Index）
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true                              # 标记为“显式源”，防止这里的旧版 requests/numpy 等基础库污染环境。
+
+# 显式配置 PyTorch CPU 源（仅用于 torch 相关包，避免污染其他基础依赖，这是解决多源依赖冲突的工程化最佳实践）
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

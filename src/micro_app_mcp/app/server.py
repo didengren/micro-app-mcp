@@ -72,7 +72,8 @@ def _is_update_command(command: str) -> bool:
 def _is_force_update(command: str) -> bool:
     """判断是否要求强制更新"""
     lowered = command.lower()
-    return "force=true" in lowered or "强制" in lowered
+    _strip_lowered = "".join(lowered.split())
+    return "force=true" in _strip_lowered or "强制" in lowered
 
 
 def _parse_bool(value: str) -> bool:
@@ -142,11 +143,11 @@ def _tokenize_command(command: str) -> list[str]:
 
 async def _dispatch_explicit_tool_call(command: str, top_k: int) -> object | None:
     """显式工具名分发：支持所有已注册 MCP 工具通过 /micro 触发。"""
-    tokens = _tokenize_command(command)
+    tokens = _tokenize_command(command)  # list化命令参数
     if not tokens:
         return None
 
-    tool_name = tokens[0]
+    tool_name = tokens[0]  # 提取的工具名
 
     if tool_name == "micro_app_command":
         return {
@@ -155,7 +156,7 @@ async def _dispatch_explicit_tool_call(command: str, top_k: int) -> object | Non
         }
 
     try:
-        tool = await mcp.local_provider.get_tool(tool_name)
+        tool = await mcp.local_provider.get_tool(tool_name)  # 通过工具名拿到注册的工具实例
     except Exception:
         tool = None
 
@@ -165,11 +166,11 @@ async def _dispatch_explicit_tool_call(command: str, top_k: int) -> object | Non
     if not isinstance(tool, FunctionTool):
         return None
 
-    fn = tool.fn
-    signature = inspect.signature(fn)
+    fn = tool.fn  # 工具名对应的工具函数
+    signature = inspect.signature(fn)  # 工具函数的参数签名对象
 
-    raw_kwargs: dict[str, str] = {}
-    positional_tokens: list[str] = []
+    raw_kwargs: dict[str, str] = {}  # 存储解析token后的键值对参数
+    positional_tokens: list[str] = []  # 存储token里的位置参数
     for token in tokens[1:]:
         if "=" in token:
             key, value = token.split("=", 1)
@@ -177,9 +178,9 @@ async def _dispatch_explicit_tool_call(command: str, top_k: int) -> object | Non
         else:
             positional_tokens.append(token)
 
-    kwargs: dict[str, Any] = {}
+    kwargs: dict[str, Any] = {}  # 经过类型转换的参数键值对列表
     pos_idx = 0
-    parameters = list(signature.parameters.values())
+    parameters = list(signature.parameters.values())  # 形参对象的列表
     for idx, param in enumerate(parameters):
         if param.kind in {
             inspect.Parameter.VAR_POSITIONAL,
@@ -242,10 +243,7 @@ async def _dispatch_explicit_tool_call(command: str, top_k: int) -> object | Non
     if pos_idx < len(positional_tokens):
         return {
             "status": "bad_request",
-            "message": (
-                f"{tool_name} 存在无法解析的额外参数: "
-                f"{' '.join(positional_tokens[pos_idx:])}"
-            ),
+            "message": (f"{tool_name} 存在无法解析的额外参数: {' '.join(positional_tokens[pos_idx:])}"),
         }
 
     if inspect.iscoroutinefunction(fn):
