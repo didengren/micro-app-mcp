@@ -3,10 +3,14 @@
 import argparse
 
 from micro_app_mcp.app.server import mcp
+from micro_app_mcp.utils.logger import setup_logging
 
 
 def main():
     """主函数入口"""
+    # 初始化日志配置
+    setup_logging()
+
     parser = argparse.ArgumentParser(description="Micro-App MCP Server")
     parser.add_argument(
         "--transport",
