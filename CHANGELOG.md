@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 
 
+## v0.1.8 (2026-03-03)
+
+
+- refactor: 1. 重写日志模块 2. 知识库过期间隔由1天调整为7天
+- fix: 1. 路径动态化 ：将 CHROMA_DB_PATH 和 METADATA_PATH 改为 @property 。这确保了无论 DATA_DIR 何时被修改（例如在测试环境或目录回退时），子路径永远自动保持同步，彻底消除了路径不一致的隐患。
+- ci: 检出目标仓库解决action过程警告问题
+- docs: changelog文件删除多余信息
+
 ## v0.1.7 (2026-02-28)
 
 
